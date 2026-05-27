@@ -13,6 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Firebase SDK — cargado en head para evitar problemas de CSP -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <style>
     :root {
       --bg: #0d0d0f;
@@ -381,10 +384,13 @@
 <body>
 
 <div class="topbar">
-  <div class="brand">icfes<span>.</span>track</div>
+  <div>
+    <div class="brand">icfes<span>.</span>track</div>
+    <div id="user-greeting" style="font-size:11px;color:var(--muted);margin-top:1px;display:none"></div>
+  </div>
   <div style="display:flex;gap:8px;align-items:center">
     <div class="streak">🔥 <span id="streak-top">0</span>d</div>
-    <div class="sync-status" id="sync-status" onclick="openFirebaseModal()" style="cursor:pointer" title="Toca para configurar sincronización">
+    <div class="sync-status" id="sync-status" onclick="openFirebaseModal()" style="cursor:pointer" title="Cuenta">
       <span class="sync-dot" id="sync-dot"></span><span id="sync-label">local</span>
     </div>
   </div>
@@ -431,9 +437,16 @@
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;padding:32px 24px;overflow-y:auto">
   <div style="max-width:360px;margin:0 auto;padding-top:60px">
     <div style="font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:6px">icfes<span style="color:var(--green)">.</span>track</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:36px">Inicia sesión para sincronizar tus hábitos entre celular y PC</div>
+    <div id="auth-subtitle" style="font-size:13px;color:var(--muted);margin-bottom:28px">Inicia sesión para sincronizar tus hábitos</div>
 
     <div id="auth-error" style="display:none;background:var(--red-dim);border:1px solid rgba(255,85,102,0.3);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--red);margin-bottom:14px"></div>
+
+    <!-- Campo nombre — solo visible al registrarse -->
+    <div id="field-name" style="display:none;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Tu nombre o apodo</div>
+      <input id="auth-name" type="text" placeholder="ej: Sofía, Sofi, Chica ICFES..."
+        style="width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+    </div>
 
     <div style="margin-bottom:12px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Correo</div>
@@ -446,14 +459,32 @@
         style="width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
     </div>
 
-    <button id="btn-login" onclick="authLogin()"
+    <button id="btn-main-action" onclick="authLogin()"
       style="width:100%;padding:14px;background:var(--green);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
       Iniciar sesión
     </button>
-    <button id="btn-register" onclick="authRegister()"
-      style="width:100%;padding:14px;background:transparent;color:var(--green);border:1px solid rgba(0,229,160,0.3);border-radius:var(--radius-sm);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer">
-      Crear cuenta nueva
+
+    <!-- Separador -->
+    <div style="display:flex;align-items:center;gap:10px;margin:16px 0">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:11px;color:var(--muted)">o continúa con</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+
+    <!-- Google Sign-In -->
+    <button onclick="authGoogle()"
+      style="width:100%;padding:13px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      Continuar con Google
     </button>
+
+    <div style="text-align:center;margin-top:4px">
+      <span id="auth-toggle-text" style="font-size:13px;color:var(--muted)">¿No tienes cuenta?</span>
+      <button id="auth-toggle-btn" onclick="toggleAuthMode()"
+        style="background:none;border:none;color:var(--green);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;padding:4px 6px">
+        Crear cuenta
+      </button>
+    </div>
 
     <button onclick="useOffline()"
       style="width:100%;margin-top:16px;padding:10px;background:transparent;color:var(--muted);border:none;font-family:var(--font-head);font-size:12px;cursor:pointer">
@@ -462,11 +493,12 @@
   </div>
 </div>
 
-<!-- ── FIREBASE MODAL (configuración rápida desde app) ── -->
+<!-- ── FIREBASE MODAL ── -->
 <div class="modal-overlay" id="firebase-modal">
   <div class="modal">
-    <h3>🔥 Cuenta Firebase</h3>
-    <p id="fb-modal-user" style="font-size:13px;color:var(--green);margin-bottom:12px"></p>
+    <h3 id="fb-modal-title">Mi cuenta</h3>
+    <p id="fb-modal-user" style="font-size:13px;color:var(--green);margin-bottom:4px"></p>
+    <p id="fb-modal-email" style="font-size:11px;color:var(--muted);margin-bottom:16px"></p>
     <div class="modal-btns">
       <button onclick="authLogout()" class="btn-green" style="flex:1;padding:10px">Cerrar sesión</button>
       <button onclick="closeFirebaseModal()" class="btn-dim">Cancelar</button>
@@ -702,12 +734,90 @@ function authApiUrl(endpoint) {
   return `https://identitytoolkit.googleapis.com/v1/accounts:${endpoint}?key=${fbConfig.apiKey}`;
 }
 
+// ── Auth mode toggle (login ↔ register) ──
+let authMode = 'login';
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  const isReg = authMode === 'register';
+  document.getElementById('field-name').style.display = isReg ? 'block' : 'none';
+  document.getElementById('btn-main-action').textContent = isReg ? 'Crear cuenta' : 'Iniciar sesión';
+  document.getElementById('btn-main-action').onclick = isReg ? authRegister : authLogin;
+  document.getElementById('auth-toggle-text').textContent = isReg ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?';
+  document.getElementById('auth-toggle-btn').textContent = isReg ? 'Iniciar sesión' : 'Crear cuenta';
+  document.getElementById('auth-subtitle').textContent = isReg ? 'Crea tu cuenta — solo tú verás tus datos' : 'Inicia sesión para sincronizar tus hábitos';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+// ── Google Sign-In ──
+let _firebaseApp = null;
+function getFirebaseApp() {
+  if (_firebaseApp) return _firebaseApp;
+  _firebaseApp = firebase.initializeApp({
+    apiKey:      fbConfig.apiKey,
+    authDomain:  fbConfig.authDomain,
+    projectId:   fbConfig.projectId,
+    databaseURL: fbConfig.dbUrl
+  });
+  return _firebaseApp;
+}
+
+async function authGoogle() {
+  document.getElementById('auth-error').style.display = 'none';
+  try {
+    const app  = getFirebaseApp();
+    const auth = firebase.auth(app);
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    const result    = await auth.signInWithPopup(provider);
+    const user      = result.user;
+    const idToken   = await user.getIdToken();
+    const googleName = user.displayName || user.email.split('@')[0];
+
+    const authObj = {
+      idToken,
+      refreshToken: user.refreshToken || '',
+      uid:          user.uid,
+      email:        user.email,
+      name:         googleName,
+      expiresAt:    Date.now() + 3500000,
+      provider:     'google'
+    };
+    localStorage.setItem('fb_auth', JSON.stringify(authObj));
+    currentUser = authObj;
+
+    // Save name to DB if first time
+    const existingName = await fbRead('profile/name');
+    if (!existingName) await fbWrite('profile/name', googleName);
+
+    hideLoginScreen();
+    showUserGreeting(googleName);
+    setSyncStatus('syncing', 'sync...');
+    fbSync();
+
+    // Refresh token every ~55 min
+    setInterval(async () => {
+      try {
+        const fresh = await firebase.auth(getFirebaseApp()).currentUser?.getIdToken(true);
+        if (fresh) {
+          currentUser.idToken   = fresh;
+          currentUser.expiresAt = Date.now() + 3500000;
+          localStorage.setItem('fb_auth', JSON.stringify(currentUser));
+        }
+      } catch(e) {}
+      fbSync();
+    }, 60000);
+
+  } catch(e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+    showAuthError('Error con Google: ' + (e.message || e.code || 'inténtalo de nuevo'));
+  }
+}
+
 async function authLogin() {
   const email = document.getElementById('auth-email').value.trim();
   const pass  = document.getElementById('auth-pass').value;
-  const errEl = document.getElementById('auth-error');
-  const btn   = document.getElementById('btn-login');
-  if (!fbConfig) { showAuthError('Primero guarda la configuración Firebase abajo'); return; }
+  const btn   = document.getElementById('btn-main-action');
   if (!email || !pass) { showAuthError('Ingresa correo y contraseña'); return; }
   btn.textContent = 'Entrando...'; btn.disabled = true;
   try {
@@ -718,18 +828,24 @@ async function authLogin() {
     });
     const data = await res.json();
     if (data.error) throw new Error(translateAuthError(data.error.message));
-    onAuthSuccess(data);
+    // Fetch saved name from DB after login
+    const tempUser = { idToken: data.idToken, uid: data.localId, email: data.email, refreshToken: data.refreshToken, expiresAt: Date.now() + 3500000 };
+    currentUser = tempUser;
+    const savedName = await fbRead('profile/name');
+    onAuthSuccess(data, savedName || data.email.split('@')[0]);
   } catch(e) {
     showAuthError(e.message);
     btn.textContent = 'Iniciar sesión'; btn.disabled = false;
+    currentUser = null;
   }
 }
 
 async function authRegister() {
   const email = document.getElementById('auth-email').value.trim();
   const pass  = document.getElementById('auth-pass').value;
-  const btn   = document.getElementById('btn-register');
-  if (!fbConfig) { showAuthError('Primero guarda la configuración Firebase abajo'); return; }
+  const name  = (document.getElementById('auth-name').value || '').trim();
+  const btn   = document.getElementById('btn-main-action');
+  if (!name)  { showAuthError('Escribe tu nombre o apodo'); return; }
   if (!email || !pass) { showAuthError('Ingresa correo y contraseña'); return; }
   if (pass.length < 6) { showAuthError('La contraseña debe tener al menos 6 caracteres'); return; }
   btn.textContent = 'Creando cuenta...'; btn.disabled = true;
@@ -741,10 +857,15 @@ async function authRegister() {
     });
     const data = await res.json();
     if (data.error) throw new Error(translateAuthError(data.error.message));
-    onAuthSuccess(data);
+    // Save name to DB
+    const tempUser = { idToken: data.idToken, uid: data.localId, email: data.email, refreshToken: data.refreshToken, expiresAt: Date.now() + 3500000 };
+    currentUser = tempUser;
+    await fbWrite('profile/name', name);
+    onAuthSuccess(data, name);
   } catch(e) {
     showAuthError(e.message);
-    btn.textContent = 'Crear cuenta nueva'; btn.disabled = false;
+    btn.textContent = 'Crear cuenta'; btn.disabled = false;
+    currentUser = null;
   }
 }
 
@@ -759,7 +880,7 @@ async function refreshToken() {
     });
     const data = await res.json();
     if (data.id_token) {
-      const auth = { idToken: data.id_token, refreshToken: data.refresh_token, uid: saved.uid, email: saved.email, expiresAt: Date.now() + 3500000 };
+      const auth = { ...saved, idToken: data.id_token, refreshToken: data.refresh_token, expiresAt: Date.now() + 3500000 };
       localStorage.setItem('fb_auth', JSON.stringify(auth));
       currentUser = auth;
       return true;
@@ -772,23 +893,34 @@ function getSavedAuth() {
   try { return JSON.parse(localStorage.getItem('fb_auth') || 'null'); } catch(e) { return null; }
 }
 
-function onAuthSuccess(data) {
+function onAuthSuccess(data, name) {
   const auth = {
     idToken: data.idToken,
     refreshToken: data.refreshToken,
     uid: data.localId,
     email: data.email,
-    expiresAt: Date.now() + 3500000 // ~1hr
+    name: name,
+    expiresAt: Date.now() + 3500000
   };
   localStorage.setItem('fb_auth', JSON.stringify(auth));
   currentUser = auth;
   hideLoginScreen();
+  showUserGreeting(name);
   setSyncStatus('syncing', 'sync...');
   fbSync();
   setInterval(async () => {
     if (currentUser && Date.now() > currentUser.expiresAt - 60000) await refreshToken();
     fbSync();
   }, 60000);
+}
+
+function showUserGreeting(name) {
+  const el = document.getElementById('user-greeting');
+  if (!name) { el.style.display = 'none'; return; }
+  const hour = new Date().getHours();
+  const saludo = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+  el.textContent = saludo + ', ' + name + ' 👋';
+  el.style.display = 'block';
 }
 
 function showAuthError(msg) {
@@ -815,12 +947,18 @@ function authLogout() {
   currentUser = null;
   closeFirebaseModal();
   setSyncStatus('', 'local');
+  document.getElementById('user-greeting').style.display = 'none';
+  authMode = 'login';
+  document.getElementById('field-name').style.display = 'none';
+  document.getElementById('btn-main-action').textContent = 'Iniciar sesión';
+  document.getElementById('btn-main-action').onclick = authLogin;
   showLoginScreen();
 }
 
 function openFirebaseModal() {
   if (currentUser) {
-    document.getElementById('fb-modal-user').textContent = '✓ Conectado como ' + currentUser.email;
+    document.getElementById('fb-modal-user').textContent = currentUser.name || currentUser.email.split('@')[0];
+    document.getElementById('fb-modal-email').textContent = currentUser.email;
     document.getElementById('firebase-modal').classList.add('open');
   } else {
     showLoginScreen();
@@ -836,6 +974,7 @@ function showLoginScreen() {
 function hideLoginScreen() {
   document.getElementById('login-screen').style.display = 'none';
 }
+
 function useOffline() {
   hideLoginScreen();
   setSyncStatus('', 'local');
@@ -915,6 +1054,7 @@ async function fbSync() {
 const savedAuth = getSavedAuth();
 if (savedAuth) {
   currentUser = savedAuth;
+  showUserGreeting(savedAuth.name || savedAuth.email.split('@')[0]);
   if (Date.now() > savedAuth.expiresAt - 60000) {
     refreshToken().then(ok => {
       if (ok) { fbSync(); setSyncStatus('syncing', 'sync...'); }
