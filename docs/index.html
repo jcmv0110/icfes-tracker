@@ -298,6 +298,12 @@
       font-family: var(--font-head); font-size: 13px; cursor: pointer;
     }
 
+    /* ── LOGIN INPUTS FOCUS ── */
+    #login-screen input:focus {
+      border-color: rgba(0,229,160,0.5);
+      box-shadow: 0 0 0 3px rgba(0,229,160,0.08);
+    }
+
     canvas { display: block; }
 
     /* ── COUNTDOWN BANNER ── */
@@ -421,22 +427,50 @@
   </div>
 </div>
 
-<!-- ── FIREBASE MODAL ── -->
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;padding:32px 24px;overflow-y:auto">
+  <div style="max-width:360px;margin:0 auto;padding-top:60px">
+    <div style="font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:6px">icfes<span style="color:var(--green)">.</span>track</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:36px">Inicia sesión para sincronizar tus hábitos entre celular y PC</div>
+
+    <div id="auth-error" style="display:none;background:var(--red-dim);border:1px solid rgba(255,85,102,0.3);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--red);margin-bottom:14px"></div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Correo</div>
+      <input id="auth-email" type="email" placeholder="tu@correo.com" autocomplete="email"
+        style="width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+    </div>
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Contraseña</div>
+      <input id="auth-pass" type="password" placeholder="mínimo 6 caracteres" autocomplete="current-password"
+        style="width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+    </div>
+
+    <button id="btn-login" onclick="authLogin()"
+      style="width:100%;padding:14px;background:var(--green);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      Iniciar sesión
+    </button>
+    <button id="btn-register" onclick="authRegister()"
+      style="width:100%;padding:14px;background:transparent;color:var(--green);border:1px solid rgba(0,229,160,0.3);border-radius:var(--radius-sm);font-family:var(--font-head);font-size:15px;font-weight:700;cursor:pointer">
+      Crear cuenta nueva
+    </button>
+
+    <button onclick="useOffline()"
+      style="width:100%;margin-top:16px;padding:10px;background:transparent;color:var(--muted);border:none;font-family:var(--font-head);font-size:12px;cursor:pointer">
+      Usar sin sincronización →
+    </button>
+  </div>
+</div>
+
+<!-- ── FIREBASE MODAL (configuración rápida desde app) ── -->
 <div class="modal-overlay" id="firebase-modal">
   <div class="modal">
-    <h3>🔥 Sincronización Firebase</h3>
-    <p>Pega tu <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px">databaseURL</code> de Firebase Realtime Database para sincronizar entre celular y PC. Tus datos existentes se migran automáticamente.</p>
-    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Database URL</label>
-    <input id="fb-url" type="text" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com">
-    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">API Key</label>
-    <input id="fb-apikey" type="text" placeholder="AIzaSy...">
-    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">ID de usuario (ej: tu nombre, sin espacios)</label>
-    <input id="fb-uid" type="text" placeholder="mi_usuario">
+    <h3>🔥 Cuenta Firebase</h3>
+    <p id="fb-modal-user" style="font-size:13px;color:var(--green);margin-bottom:12px"></p>
     <div class="modal-btns">
-      <button onclick="saveFirebaseConfig()" class="btn-green" style="flex:1;padding:10px">Guardar y conectar</button>
+      <button onclick="authLogout()" class="btn-green" style="flex:1;padding:10px">Cerrar sesión</button>
       <button onclick="closeFirebaseModal()" class="btn-dim">Cancelar</button>
     </div>
-    <div id="fb-status" style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center"></div>
   </div>
 </div>
 <div class="screen active" id="screen-hoy">
@@ -627,13 +661,24 @@ function getDayScore(date) {
 }
 
 // ═══════════════════════════════════════════
-// FIREBASE
+// FIREBASE — Auth + Realtime Database
 // ═══════════════════════════════════════════
-let fbConfig = (() => {
-  try { return JSON.parse(localStorage.getItem('fb_config') || 'null'); } catch(e) { return null; }
-})();
-let fbConnected = false;
-let fbSyncTimer = null;
+let FB = null;         // firebase app instance
+let AUTH = null;       // auth instance
+let DB_URL = null;     // database url
+let currentUser = null;
+
+// Firebase config embebida — no necesita configuración manual
+const FB_CONFIG_DEFAULT = {
+  apiKey:      'AIzaSyDdyiGm_marITMeYmbWftYGMdWjWcQT_g0',
+  dbUrl:       'https://icfes-traker-default-rtdb.firebaseio.com',
+  projectId:   'icfes-traker',
+  authDomain:  'icfes-traker.firebaseapp.com'
+};
+
+// Siempre usa la config embebida
+let fbConfig = FB_CONFIG_DEFAULT;
+localStorage.setItem('fb_config_v2', JSON.stringify(fbConfig));
 
 function setSyncStatus(state, label) {
   const dot = document.getElementById('sync-dot');
@@ -642,42 +687,205 @@ function setSyncStatus(state, label) {
   lbl.textContent = label;
 }
 
-function fbUrl(path) {
-  if (!fbConfig) return null;
-  return `${fbConfig.dbUrl.replace(/\/$/, '')}/users/${fbConfig.uid}/${path}.json?auth=${fbConfig.apiKey}`;
+// ── Init Firebase SDK ──
+function initFirebase(cfg) {
+  if (!cfg) return;
+  DB_URL = cfg.dbUrl.replace(/\/$/, '');
+  fbConfig = cfg;
+}
+
+// ── Init on load ──
+initFirebase(fbConfig);
+
+// ── REST Auth helpers ──
+function authApiUrl(endpoint) {
+  return `https://identitytoolkit.googleapis.com/v1/accounts:${endpoint}?key=${fbConfig.apiKey}`;
+}
+
+async function authLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const errEl = document.getElementById('auth-error');
+  const btn   = document.getElementById('btn-login');
+  if (!fbConfig) { showAuthError('Primero guarda la configuración Firebase abajo'); return; }
+  if (!email || !pass) { showAuthError('Ingresa correo y contraseña'); return; }
+  btn.textContent = 'Entrando...'; btn.disabled = true;
+  try {
+    const res = await fetch(authApiUrl('signInWithPassword'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass, returnSecureToken: true })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(translateAuthError(data.error.message));
+    onAuthSuccess(data);
+  } catch(e) {
+    showAuthError(e.message);
+    btn.textContent = 'Iniciar sesión'; btn.disabled = false;
+  }
+}
+
+async function authRegister() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const btn   = document.getElementById('btn-register');
+  if (!fbConfig) { showAuthError('Primero guarda la configuración Firebase abajo'); return; }
+  if (!email || !pass) { showAuthError('Ingresa correo y contraseña'); return; }
+  if (pass.length < 6) { showAuthError('La contraseña debe tener al menos 6 caracteres'); return; }
+  btn.textContent = 'Creando cuenta...'; btn.disabled = true;
+  try {
+    const res = await fetch(authApiUrl('signUp'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass, returnSecureToken: true })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(translateAuthError(data.error.message));
+    onAuthSuccess(data);
+  } catch(e) {
+    showAuthError(e.message);
+    btn.textContent = 'Crear cuenta nueva'; btn.disabled = false;
+  }
+}
+
+async function refreshToken() {
+  const saved = getSavedAuth();
+  if (!saved || !saved.refreshToken) return false;
+  try {
+    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${fbConfig.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=refresh_token&refresh_token=${saved.refreshToken}`
+    });
+    const data = await res.json();
+    if (data.id_token) {
+      const auth = { idToken: data.id_token, refreshToken: data.refresh_token, uid: saved.uid, email: saved.email, expiresAt: Date.now() + 3500000 };
+      localStorage.setItem('fb_auth', JSON.stringify(auth));
+      currentUser = auth;
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function getSavedAuth() {
+  try { return JSON.parse(localStorage.getItem('fb_auth') || 'null'); } catch(e) { return null; }
+}
+
+function onAuthSuccess(data) {
+  const auth = {
+    idToken: data.idToken,
+    refreshToken: data.refreshToken,
+    uid: data.localId,
+    email: data.email,
+    expiresAt: Date.now() + 3500000 // ~1hr
+  };
+  localStorage.setItem('fb_auth', JSON.stringify(auth));
+  currentUser = auth;
+  hideLoginScreen();
+  setSyncStatus('syncing', 'sync...');
+  fbSync();
+  setInterval(async () => {
+    if (currentUser && Date.now() > currentUser.expiresAt - 60000) await refreshToken();
+    fbSync();
+  }, 60000);
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function translateAuthError(code) {
+  const map = {
+    'EMAIL_NOT_FOUND': 'Correo no registrado',
+    'INVALID_PASSWORD': 'Contraseña incorrecta',
+    'USER_DISABLED': 'Cuenta desactivada',
+    'EMAIL_EXISTS': 'Este correo ya tiene cuenta — inicia sesión',
+    'WEAK_PASSWORD : Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres',
+    'INVALID_EMAIL': 'Correo inválido',
+    'TOO_MANY_ATTEMPTS_TRY_LATER': 'Demasiados intentos — espera un momento',
+    'INVALID_LOGIN_CREDENTIALS': 'Correo o contraseña incorrectos',
+  };
+  return map[code] || code;
+}
+
+function authLogout() {
+  localStorage.removeItem('fb_auth');
+  currentUser = null;
+  closeFirebaseModal();
+  setSyncStatus('', 'local');
+  showLoginScreen();
+}
+
+function openFirebaseModal() {
+  if (currentUser) {
+    document.getElementById('fb-modal-user').textContent = '✓ Conectado como ' + currentUser.email;
+    document.getElementById('firebase-modal').classList.add('open');
+  } else {
+    showLoginScreen();
+  }
+}
+function closeFirebaseModal() {
+  document.getElementById('firebase-modal').classList.remove('open');
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').style.display = 'block';
+}
+function hideLoginScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+}
+function useOffline() {
+  hideLoginScreen();
+  setSyncStatus('', 'local');
+}
+
+// ── REST Database helpers ──
+async function getIdToken() {
+  if (!currentUser) return null;
+  if (Date.now() > currentUser.expiresAt - 60000) {
+    const ok = await refreshToken();
+    if (!ok) return null;
+  }
+  return currentUser.idToken;
+}
+
+function dbUrl(path) {
+  if (!fbConfig || !currentUser) return null;
+  return `${DB_URL}/users/${currentUser.uid}/${path}.json`;
 }
 
 async function fbWrite(path, value) {
-  if (!fbConfig) return;
+  if (!currentUser || !fbConfig) return;
   setSyncStatus('syncing', 'sync...');
   try {
-    const url = fbUrl(path);
-    if (!url) return;
-    await fetch(url, {
+    const token = await getIdToken();
+    if (!token) return;
+    await fetch(dbUrl(path) + `?auth=${token}`, {
       method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(value)
     });
     setSyncStatus('online', 'sync ✓');
-    fbConnected = true;
   } catch(e) {
     setSyncStatus('error', 'error');
   }
 }
 
 async function fbRead(path) {
-  if (!fbConfig) return null;
+  if (!currentUser || !fbConfig) return null;
   try {
-    const url = fbUrl(path);
-    if (!url) return null;
-    const r = await fetch(url);
+    const token = await getIdToken();
+    if (!token) return null;
+    const r = await fetch(dbUrl(path) + `?auth=${token}`);
     if (!r.ok) return null;
     return await r.json();
   } catch(e) { return null; }
 }
 
 async function fbSync() {
-  if (!fbConfig) return;
+  if (!currentUser || !fbConfig) return;
   setSyncStatus('syncing', 'sync...');
   try {
     const [remoteData, remoteTimes] = await Promise.all([
@@ -685,11 +893,9 @@ async function fbSync() {
       fbRead('runTimes')
     ]);
     if (remoteData && typeof remoteData === 'object') {
-      // Merge: remote wins for dates not in local, local wins otherwise
       const merged = Object.assign({}, remoteData, DATA);
       DATA = merged;
       localStorage.setItem('icfes_v2', JSON.stringify(merged));
-      // Push merged back
       await fbWrite('habitData', merged);
     }
     if (remoteTimes && Array.isArray(remoteTimes)) {
@@ -698,7 +904,6 @@ async function fbSync() {
       localStorage.setItem('run_times', JSON.stringify(merged));
       await fbWrite('runTimes', merged);
     }
-    fbConnected = true;
     setSyncStatus('online', 'online');
     renderHoy();
     document.getElementById('streak-top').textContent = calcStreak();
@@ -707,45 +912,24 @@ async function fbSync() {
   }
 }
 
-function openFirebaseModal() {
-  const modal = document.getElementById('firebase-modal');
-  modal.classList.add('open');
-  if (fbConfig) {
-    document.getElementById('fb-url').value = fbConfig.dbUrl || '';
-    document.getElementById('fb-apikey').value = fbConfig.apiKey || '';
-    document.getElementById('fb-uid').value = fbConfig.uid || '';
+const savedAuth = getSavedAuth();
+if (savedAuth) {
+  currentUser = savedAuth;
+  if (Date.now() > savedAuth.expiresAt - 60000) {
+    refreshToken().then(ok => {
+      if (ok) { fbSync(); setSyncStatus('syncing', 'sync...'); }
+      else showLoginScreen();
+    });
+  } else {
+    fbSync();
+    setSyncStatus('syncing', 'sync...');
+    setInterval(async () => {
+      if (currentUser && Date.now() > currentUser.expiresAt - 60000) await refreshToken();
+      fbSync();
+    }, 60000);
   }
-}
-function closeFirebaseModal() {
-  document.getElementById('firebase-modal').classList.remove('open');
-}
-
-async function saveFirebaseConfig() {
-  const dbUrl = document.getElementById('fb-url').value.trim();
-  const apiKey = document.getElementById('fb-apikey').value.trim();
-  const uid = document.getElementById('fb-uid').value.trim().replace(/\s+/g,'_');
-  const status = document.getElementById('fb-status');
-  if (!dbUrl || !apiKey || !uid) { status.textContent = '⚠ Completa todos los campos'; return; }
-  if (!dbUrl.startsWith('https://')) { status.textContent = '⚠ La URL debe empezar con https://'; return; }
-  fbConfig = { dbUrl, apiKey, uid };
-  localStorage.setItem('fb_config', JSON.stringify(fbConfig));
-  status.textContent = 'Conectando...';
-  try {
-    await fbSync();
-    status.textContent = '✓ Conectado y sincronizado';
-    setTimeout(closeFirebaseModal, 1200);
-  } catch(e) {
-    status.textContent = '✗ Error de conexión — revisa los datos';
-  }
-}
-
-// Init Firebase if config exists
-if (fbConfig) {
-  fbSync();
-  // Re-sync every 60 seconds while app is open
-  setInterval(fbSync, 60000);
 } else {
-  setSyncStatus('', 'local');
+  showLoginScreen();
 }
 
 // ═══════════════════════════════════════════
