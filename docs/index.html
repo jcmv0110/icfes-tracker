@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hábitos ICFES">
+  <meta name="theme-color" content="#0d0d0f">
+  <link rel="manifest" href="manifest.json">
+  <title>Hábitos ICFES</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --text: #f0eff4;
+      --muted: #7a7a8a;
+      --green: #00e5a0;
+      --green-dim: rgba(0,229,160,0.12);
+      --green-mid: rgba(0,229,160,0.25);
+      --blue: #4da6ff;
+      --blue-dim: rgba(77,166,255,0.12);
+      --pink: #ff6b9d;
+      --pink-dim: rgba(255,107,157,0.12);
+      --amber: #ffb347;
+      --amber-dim: rgba(255,179,71,0.12);
+      --purple: #b47aff;
+      --purple-dim: rgba(180,122,255,0.12);
+      --red: #ff5566;
+      --red-dim: rgba(255,85,102,0.12);
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-head);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body { padding-bottom: env(safe-area-inset-bottom, 20px); }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg);
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand span { color: var(--green); }
+    .countdown-pill {
+      background: var(--green-dim);
+      border: 1px solid rgba(0,229,160,0.2);
+      color: var(--green);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── TABS ── */
+    .tabbar {
+      display: flex; gap: 4px;
+      padding: 12px 16px;
+      background: var(--bg);
+      position: sticky; top: 57px; z-index: 99;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1; padding: 9px 6px; border: none;
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-head);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+    }
+    .tab svg { width: 15px; height: 15px; }
+    .tab.active {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(0,229,160,0.25);
+    }
+
+    /* ── SCREENS ── */
+    .screen { display: none; padding: 16px; animation: fadeIn .2s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── DATE NAV ── */
+    .date-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .nav-btn {
+      width: 40px; height: 40px;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-size: 18px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: all .15s;
+    }
+    .nav-btn:active { background: var(--surface2); transform: scale(.94); }
+    .date-info { text-align: center; }
+    .date-main { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+    .date-sub { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-top: 1px; }
+
+    /* ── HABIT CARDS ── */
+    .section-label {
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1.5px;
+      margin: 18px 0 8px;
+    }
+    .habit {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 14px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 12px;
+      cursor: pointer; transition: all .2s;
+      -webkit-user-select: none; user-select: none;
+    }
+    .habit:active { transform: scale(.98); }
+    .habit.done {
+      background: var(--green-dim);
+      border-color: rgba(0,229,160,0.25);
+    }
+    .habit-ico {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .habit-body { flex: 1; min-width: 0; }
+    .habit-name { font-size: 14px; font-weight: 700; }
+    .habit-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .check {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 1.5px solid var(--border2);
+      background: transparent; color: transparent;
+      font-size: 16px; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: all .2s;
+    }
+    .habit.done .check {
+      background: var(--green); border-color: var(--green);
+      color: #000;
+    }
+
+    /* ── ICFES COUNTER ── */
+    .icfes-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px; margin-bottom: 8px;
+    }
+    .icfes-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .icfes-big {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 48px; font-weight: 500;
+      color: var(--blue);
+      line-height: 1;
+    }
+    .icfes-label { font-size: 11px; color: var(--muted); text-align: center; margin-top: 4px; font-family: var(--font-mono); }
+    .icfes-btns {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 6px; margin-top: 12px;
+    }
+    .q-btn {
+      padding: 12px 0; background: var(--surface2);
+      border: 1px solid var(--border2); border-radius: var(--radius-sm);
+      color: var(--text); font-family: var(--font-mono);
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: all .15s;
+    }
+    .q-btn:active { background: var(--border2); transform: scale(.96); }
+    .q-btn.plus { color: var(--blue); }
+    .q-btn.minus { color: var(--muted); }
+
+    /* ── ENGLISH SELECTOR ── */
+    .eng-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    .eng-opt {
+      padding: 11px 14px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface2);
+      font-size: 13px; cursor: pointer; transition: all .15s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .eng-opt:active { transform: scale(.98); }
+    .eng-opt.selected {
+      background: var(--purple-dim);
+      border-color: rgba(180,122,255,0.3);
+      color: var(--purple);
+    }
+    .eng-opt-ico { font-size: 16px; }
+
+    /* ── STATS ── */
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .metric {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 14px;
+    }
+    .metric-val { font-size: 26px; font-weight: 800; font-family: var(--font-mono); }
+    .metric-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .metric.accent { background: var(--green-dim); border-color: rgba(0,229,160,0.2); }
+    .metric.accent .metric-val { color: var(--green); }
+
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+    }
+    .chart-title {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+    }
+
+    /* ── BARS ── */
+    .bars { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; }
+    .bar-nm { font-size: 12px; color: var(--muted); width: 68px; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width .4s cubic-bezier(.4,0,.2,1); }
+    .bar-pct { font-size: 11px; font-family: var(--font-mono); color: var(--muted); width: 32px; text-align: right; }
+
+    /* ── HEATMAP ── */
+    .heatmap { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+    .hm-cell { aspect-ratio: 1; border-radius: 4px; }
+
+    /* ── RUNNING CARD ── */
+    .running-goal {
+      background: linear-gradient(135deg, var(--amber-dim), var(--surface));
+      border: 1px solid rgba(255,179,71,0.25);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 8px;
+    }
+    .goal-title { font-size: 13px; font-weight: 700; color: var(--amber); margin-bottom: 4px; }
+    .goal-detail { font-size: 12px; color: var(--muted); }
+
+    /* ── STREAK BADGE ── */
+    .streak {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--amber-dim); border: 1px solid rgba(255,179,71,0.2);
+      color: var(--amber); font-size: 12px; font-family: var(--font-mono);
+      padding: 5px 10px; border-radius: 20px;
+    }
+
+    /* ── HISTORY LIST ── */
+    .hist-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; margin-bottom: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .hist-date { font-size: 12px; color: var(--muted); font-family: var(--font-mono); width: 72px; flex-shrink: 0; }
+    .hist-bar { flex: 1; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .hist-fill { height: 100%; border-radius: 3px; background: var(--green); }
+    .hist-pct { font-size: 12px; font-family: var(--font-mono); color: var(--text); width: 36px; text-align: right; }
+    .hist-q { font-size: 11px; color: var(--muted); width: 28px; text-align: right; }
+
+    /* ── LEGEND ── */
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .leg-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+    .leg-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 0; }
+
+    /* PWA install banner */
+    #install-banner {
+      display: none; position: fixed; bottom: 80px; left: 16px; right: 16px;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 14px 16px; z-index: 200;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    #install-banner p { font-size: 13px; margin-bottom: 10px; }
+    #install-banner .btn-row { display: flex; gap: 8px; }
+    .btn-green {
+      flex: 1; padding: 10px; background: var(--green); color: #000;
+      border: none; border-radius: var(--radius-sm); font-family: var(--font-head);
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-dim {
+      padding: 10px 14px; background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-family: var(--font-head); font-size: 13px; cursor: pointer;
+    }
+
+    canvas { display: block; }
+
+    /* ── COUNTDOWN BANNER ── */
+    .countdown-banner {
+      margin: 0 16px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .cd-label {
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;
+    }
+    .cd-unit {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .cd-num {
+      font-family: var(--font-mono); font-size: 22px; font-weight: 500;
+      color: var(--green); line-height: 1;
+      min-width: 36px; text-align: center;
+    }
+    .cd-unit-lbl {
+      font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+    }
+    .cd-sep {
+      font-family: var(--font-mono); font-size: 20px; color: var(--border2);
+      padding-bottom: 10px;
+    }
+    .cd-units { display: flex; align-items: center; gap: 2px; }
+    .cd-event { font-size: 11px; font-weight: 700; color: var(--text); }
+    .cd-date { font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-top: 1px; }
+
+    /* ── SYNC STATUS ── */
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); display: inline-block; margin-right: 4px;
+      transition: background .3s;
+    }
+    .sync-dot.online { background: var(--green); }
+    .sync-dot.syncing { background: var(--amber); animation: pulse .6s infinite alternate; }
+    .sync-dot.error { background: var(--red); }
+    @keyframes pulse { from { opacity: 1; } to { opacity: 0.3; } }
+    .sync-status {
+      font-size: 10px; color: var(--muted); display: flex; align-items: center;
+      padding: 4px 10px; border-radius: 20px;
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+
+    /* ── FIREBASE CONFIG MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8); z-index: 300;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 20px; width: 100%; max-width: 380px;
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .modal p { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+    .modal input, .modal textarea {
+      width: 100%; padding: 10px 12px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: var(--font-mono); font-size: 11px; outline: none;
+      margin-bottom: 8px; resize: vertical;
+    }
+    .modal-btns { display: flex; gap: 8px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">icfes<span>.</span>track</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div class="streak">🔥 <span id="streak-top">0</span>d</div>
+    <div class="sync-status" id="sync-status" onclick="openFirebaseModal()" style="cursor:pointer" title="Toca para configurar sincronización">
+      <span class="sync-dot" id="sync-dot"></span><span id="sync-label">local</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <button class="tab active" onclick="switchTab('hoy',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Hoy
+  </button>
+  <button class="tab" onclick="switchTab('stats',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Stats
+  </button>
+  <button class="tab" onclick="switchTab('historial',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Historial
+  </button>
+  <button class="tab" onclick="switchTab('meta',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    Meta
+  </button>
+</div>
+
+<!-- ── COUNTDOWN BANNER ── -->
+<div class="countdown-banner" id="countdown-banner" style="margin-top:12px">
+  <div>
+    <div class="cd-label">Cuenta regresiva</div>
+    <div class="cd-event">ICFES 2025</div>
+    <div class="cd-date">Sáb 26 jul · 7:00 AM</div>
+  </div>
+  <div class="cd-units" id="cd-units">
+    <div class="cd-unit"><div class="cd-num" id="cd-dias">--</div><div class="cd-unit-lbl">días</div></div>
+    <div class="cd-sep">:</div>
+    <div class="cd-unit"><div class="cd-num" id="cd-horas">--</div><div class="cd-unit-lbl">hrs</div></div>
+    <div class="cd-sep">:</div>
+    <div class="cd-unit"><div class="cd-num" id="cd-mins">--</div><div class="cd-unit-lbl">min</div></div>
+    <div class="cd-sep">:</div>
+    <div class="cd-unit"><div class="cd-num" id="cd-segs">--</div><div class="cd-unit-lbl">seg</div></div>
+  </div>
+</div>
+
+<!-- ── FIREBASE MODAL ── -->
+<div class="modal-overlay" id="firebase-modal">
+  <div class="modal">
+    <h3>🔥 Sincronización Firebase</h3>
+    <p>Pega tu <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px">databaseURL</code> de Firebase Realtime Database para sincronizar entre celular y PC. Tus datos existentes se migran automáticamente.</p>
+    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Database URL</label>
+    <input id="fb-url" type="text" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com">
+    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">API Key</label>
+    <input id="fb-apikey" type="text" placeholder="AIzaSy...">
+    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">ID de usuario (ej: tu nombre, sin espacios)</label>
+    <input id="fb-uid" type="text" placeholder="mi_usuario">
+    <div class="modal-btns">
+      <button onclick="saveFirebaseConfig()" class="btn-green" style="flex:1;padding:10px">Guardar y conectar</button>
+      <button onclick="closeFirebaseModal()" class="btn-dim">Cancelar</button>
+    </div>
+    <div id="fb-status" style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center"></div>
+  </div>
+</div>
+<div class="screen active" id="screen-hoy">
+  <div class="date-nav">
+    <button class="nav-btn" onclick="changeDay(-1)">‹</button>
+    <div class="date-info">
+      <div class="date-main" id="date-main">—</div>
+      <div class="date-sub" id="date-sub">—</div>
+    </div>
+    <button class="nav-btn" onclick="changeDay(1)">›</button>
+  </div>
+  <div id="habits-container"></div>
+</div>
+
+<!-- ═══ STATS ═══ -->
+<div class="screen" id="screen-stats">
+  <div class="metrics" id="metrics-grid"></div>
+  <div class="chart-card">
+    <div class="chart-title">Preguntas ICFES — 14 días</div>
+    <div style="position:relative;height:140px"><canvas id="icfesChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Cumplimiento por hábito — 30 días</div>
+    <div class="bars" id="bars-container"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Esta semana</div>
+    <div id="week-cells" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span id="week-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;width:100%;"></span>
+    </div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-sq" style="background:#1a3a2a"></div>Sin datos</div>
+      <div class="leg-item"><div class="leg-sq" style="background:#00b37a"></div>Parcial</div>
+      <div class="leg-item"><div class="leg-sq" style="background:#00e5a0"></div>Completo</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HISTORIAL ═══ -->
+<div class="screen" id="screen-historial">
+  <div class="chart-card" style="margin-bottom:16px">
+    <div class="chart-title">Mapa de calor — 60 días</div>
+    <div class="heatmap" id="heatmap"></div>
+    <div class="legend" style="margin-top:10px">
+      <div class="leg-item"><div class="leg-sq" style="background:#1a1a20"></div>0%</div>
+      <div class="leg-item"><div class="leg-sq" style="background:#003d28"></div>1–40%</div>
+      <div class="leg-item"><div class="leg-sq" style="background:#00b37a"></div>41–70%</div>
+      <div class="leg-item"><div class="leg-sq" style="background:#00e5a0"></div>71–99%</div>
+      <div class="leg-item"><div class="leg-sq" style="background:#00ffb3"></div>100%</div>
+    </div>
+  </div>
+  <div class="chart-title" style="margin-bottom:8px">Últimos 14 días</div>
+  <div id="hist-list"></div>
+</div>
+
+<!-- ═══ META ═══ -->
+<div class="screen" id="screen-meta">
+  <div class="running-goal">
+    <div class="goal-title">🏅 Maratón Medellín — 10K</div>
+    <div class="goal-detail">Meta: bajar de 50:00 min · Pace objetivo: &lt;5:00/km</div>
+  </div>
+  <div class="chart-card" style="margin-top:12px">
+    <div class="chart-title">Progreso ICFES — días estudiados</div>
+    <div style="position:relative;height:160px"><canvas id="progressChart"></canvas></div>
+  </div>
+  <div class="metrics" style="margin-top:12px" id="meta-metrics"></div>
+  <div class="chart-card" style="margin-top:4px">
+    <div class="chart-title">Registro de tiempos 10K</div>
+    <div id="times-list" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <input id="time-input" type="text" placeholder="MM:SS (ej: 52:30)"
+        style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-mono);font-size:14px;outline:none">
+      <button onclick="addTime()" style="padding:10px 16px;background:var(--amber);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-weight:700;font-size:13px;cursor:pointer">+ Tiempo</button>
+    </div>
+  </div>
+</div>
+
+<div id="install-banner">
+  <p>📱 Instala esta app en tu celular para usarla sin internet</p>
+  <div class="btn-row">
+    <button class="btn-green" id="install-btn">Instalar app</button>
+    <button class="btn-dim" onclick="document.getElementById('install-banner').style.display='none'">Ahora no</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+// ICFES: domingo 26 julio 2026 a las 7:00 AM hora Colombia (UTC-5)
+const ICFES_TIMESTAMP = new Date('2026-07-26T07:00:00-05:00').getTime();
+const SWITCH_DATE = new Date(2026, 6, 4);  // 4 julio 2026
+
+const DAYS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+const HABIT_CONFIG = [
+  { id:'icfes', name:'Preguntas ICFES', icon:'📚', color:'#4da6ff', bg:'var(--blue-dim)', type:'number', always:true },
+  { id:'lectura', name:'Lectura', icon:'📖', color:'#00e5a0', bg:'var(--green-dim)', type:'check', always:true, sub:'Al menos 20 min' },
+  { id:'skincare', name:'Skincare', icon:'✨', color:'#ff6b9d', bg:'var(--pink-dim)', type:'check', always:true, sub:'Rutina diaria' },
+  { id:'ingles', name:'Inglés', icon:'🌐', color:'#b47aff', bg:'var(--purple-dim)', type:'english', always:true },
+  { id:'gym', name:'Gym', icon:'🏋️', color:'#ff5566', bg:'var(--red-dim)', type:'check', days:[1,3,5], sub:'Lunes · Miércoles · Viernes' },
+  { id:'running', name:'Running', icon:'🏃', color:'#ffb347', bg:'var(--amber-dim)', type:'check', dynamicDays:true, sub:'Maratón Medellín 10K' },
+];
+
+function getRunningDays(date) {
+  return date >= SWITCH_DATE ? [2,4,5,0] : [2,4,6,0];
+}
+
+function habitApplies(h, date) {
+  if (h.always) return true;
+  if (h.days) return h.days.includes(date.getDay());
+  if (h.dynamicDays) return getRunningDays(date).includes(date.getDay());
+  return false;
+}
+
+// ═══════════════════════════════════════════
+// REALTIME COUNTDOWN
+// ═══════════════════════════════════════════
+function pad(n) { return String(Math.floor(n)).padStart(2,'0'); }
+
+function tickCountdown() {
+  const now = Date.now();
+  const diff = ICFES_TIMESTAMP - now;
+  if (diff <= 0) {
+    document.getElementById('cd-dias').textContent = '00';
+    document.getElementById('cd-horas').textContent = '00';
+    document.getElementById('cd-mins').textContent = '00';
+    document.getElementById('cd-segs').textContent = '00';
+    document.getElementById('cd-units').style.color = 'var(--green)';
+    return;
+  }
+  const totalSecs = Math.floor(diff / 1000);
+  const dias  = Math.floor(totalSecs / 86400);
+  const horas = Math.floor((totalSecs % 86400) / 3600);
+  const mins  = Math.floor((totalSecs % 3600) / 60);
+  const segs  = totalSecs % 60;
+  document.getElementById('cd-dias').textContent  = pad(dias);
+  document.getElementById('cd-horas').textContent = pad(horas);
+  document.getElementById('cd-mins').textContent  = pad(mins);
+  document.getElementById('cd-segs').textContent  = pad(segs);
+  // Color turns amber when <7 days
+  if (dias < 7) {
+    document.querySelectorAll('.cd-num').forEach(el => el.style.color = 'var(--amber)');
+    document.querySelectorAll('.cd-sep').forEach(el => el.style.color = 'var(--amber)');
+  }
+}
+tickCountdown();
+setInterval(tickCountdown, 1000);
+
+// ═══════════════════════════════════════════
+// DATA — localStorage + Firebase sync
+// ═══════════════════════════════════════════
+function loadData() {
+  try { return JSON.parse(localStorage.getItem('icfes_v2') || '{}'); } catch(e) { return {}; }
+}
+function saveData(d) {
+  try { localStorage.setItem('icfes_v2', JSON.stringify(d)); } catch(e) {}
+  fbWrite('habitData', d);
+}
+function loadTimes() {
+  try { return JSON.parse(localStorage.getItem('run_times') || '[]'); } catch(e) { return []; }
+}
+function saveTimes(t) {
+  try { localStorage.setItem('run_times', JSON.stringify(t)); } catch(e) {}
+  fbWrite('runTimes', t);
+}
+
+let DATA = loadData();
+let currentDate = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+
+function dk(d) { return d.toISOString().split('T')[0]; }
+function getDay(date) { return DATA[dk(date)] || { checks:{}, icfes:0, ingles:'' }; }
+function setDay(date, val) { DATA[dk(date)] = val; saveData(DATA); }
+
+function getDayScore(date) {
+  const dd = getDay(date);
+  const habits = HABIT_CONFIG.filter(h => habitApplies(h, date));
+  let total = 0, done = 0;
+  habits.forEach(h => {
+    total++;
+    if (h.type === 'number' && (dd.icfes||0) > 0) done++;
+    else if (h.type === 'english' && dd.ingles) done++;
+    else if (h.type === 'check' && dd.checks && dd.checks[h.id]) done++;
+  });
+  return total > 0 ? done/total : 0;
+}
+
+// ═══════════════════════════════════════════
+// FIREBASE
+// ═══════════════════════════════════════════
+let fbConfig = (() => {
+  try { return JSON.parse(localStorage.getItem('fb_config') || 'null'); } catch(e) { return null; }
+})();
+let fbConnected = false;
+let fbSyncTimer = null;
+
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+function fbUrl(path) {
+  if (!fbConfig) return null;
+  return `${fbConfig.dbUrl.replace(/\/$/, '')}/users/${fbConfig.uid}/${path}.json?auth=${fbConfig.apiKey}`;
+}
+
+async function fbWrite(path, value) {
+  if (!fbConfig) return;
+  setSyncStatus('syncing', 'sync...');
+  try {
+    const url = fbUrl(path);
+    if (!url) return;
+    await fetch(url, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(value)
+    });
+    setSyncStatus('online', 'sync ✓');
+    fbConnected = true;
+  } catch(e) {
+    setSyncStatus('error', 'error');
+  }
+}
+
+async function fbRead(path) {
+  if (!fbConfig) return null;
+  try {
+    const url = fbUrl(path);
+    if (!url) return null;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function fbSync() {
+  if (!fbConfig) return;
+  setSyncStatus('syncing', 'sync...');
+  try {
+    const [remoteData, remoteTimes] = await Promise.all([
+      fbRead('habitData'),
+      fbRead('runTimes')
+    ]);
+    if (remoteData && typeof remoteData === 'object') {
+      // Merge: remote wins for dates not in local, local wins otherwise
+      const merged = Object.assign({}, remoteData, DATA);
+      DATA = merged;
+      localStorage.setItem('icfes_v2', JSON.stringify(merged));
+      // Push merged back
+      await fbWrite('habitData', merged);
+    }
+    if (remoteTimes && Array.isArray(remoteTimes)) {
+      const localTimes = loadTimes();
+      const merged = [...new Set([...localTimes, ...remoteTimes])];
+      localStorage.setItem('run_times', JSON.stringify(merged));
+      await fbWrite('runTimes', merged);
+    }
+    fbConnected = true;
+    setSyncStatus('online', 'online');
+    renderHoy();
+    document.getElementById('streak-top').textContent = calcStreak();
+  } catch(e) {
+    setSyncStatus('error', 'sin sync');
+  }
+}
+
+function openFirebaseModal() {
+  const modal = document.getElementById('firebase-modal');
+  modal.classList.add('open');
+  if (fbConfig) {
+    document.getElementById('fb-url').value = fbConfig.dbUrl || '';
+    document.getElementById('fb-apikey').value = fbConfig.apiKey || '';
+    document.getElementById('fb-uid').value = fbConfig.uid || '';
+  }
+}
+function closeFirebaseModal() {
+  document.getElementById('firebase-modal').classList.remove('open');
+}
+
+async function saveFirebaseConfig() {
+  const dbUrl = document.getElementById('fb-url').value.trim();
+  const apiKey = document.getElementById('fb-apikey').value.trim();
+  const uid = document.getElementById('fb-uid').value.trim().replace(/\s+/g,'_');
+  const status = document.getElementById('fb-status');
+  if (!dbUrl || !apiKey || !uid) { status.textContent = '⚠ Completa todos los campos'; return; }
+  if (!dbUrl.startsWith('https://')) { status.textContent = '⚠ La URL debe empezar con https://'; return; }
+  fbConfig = { dbUrl, apiKey, uid };
+  localStorage.setItem('fb_config', JSON.stringify(fbConfig));
+  status.textContent = 'Conectando...';
+  try {
+    await fbSync();
+    status.textContent = '✓ Conectado y sincronizado';
+    setTimeout(closeFirebaseModal, 1200);
+  } catch(e) {
+    status.textContent = '✗ Error de conexión — revisa los datos';
+  }
+}
+
+// Init Firebase if config exists
+if (fbConfig) {
+  fbSync();
+  // Re-sync every 60 seconds while app is open
+  setInterval(fbSync, 60000);
+} else {
+  setSyncStatus('', 'local');
+}
+
+// ═══════════════════════════════════════════
+// STREAK
+// ═══════════════════════════════════════════
+
+function calcStreak() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  let streak = 0, d = new Date(today);
+  while (streak < 365) {
+    if (getDayScore(d) >= 0.5) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+// ═══════════════════════════════════════════
+// RENDER HOY
+// ═══════════════════════════════════════════
+function renderHoy() {
+  const dow = currentDate.getDay();
+  document.getElementById('date-main').textContent =
+    DAYS_ES[dow] + ', ' + currentDate.getDate() + ' ' + MONTHS_ES[currentDate.getMonth()];
+  document.getElementById('date-sub').textContent = dk(currentDate);
+
+  const dd = getDay(currentDate);
+  const habits = HABIT_CONFIG.filter(h => habitApplies(h, currentDate));
+  const container = document.getElementById('habits-container');
+
+  let html = '';
+  const icfes = habits.find(h => h.type === 'number');
+  if (icfes) {
+    const val = dd.icfes || 0;
+    html += `<div class="section-label">ICFES</div>
+    <div class="icfes-card">
+      <div class="icfes-header">
+        <div class="habit-ico" style="background:var(--blue-dim)">📚</div>
+        <div class="habit-body">
+          <div class="habit-name">Preguntas ICFES</div>
+          <div class="habit-sub">Registro diario de práctica</div>
+        </div>
+      </div>
+      <div class="icfes-big" id="icfes-display">${val}</div>
+      <div class="icfes-label">preguntas hoy</div>
+      <div class="icfes-btns">
+        <button class="q-btn minus" ontouchstart="" onclick="changeQ(-5)">−5</button>
+        <button class="q-btn minus" ontouchstart="" onclick="changeQ(-1)">−1</button>
+        <button class="q-btn plus" ontouchstart="" onclick="changeQ(1)">+1</button>
+        <button class="q-btn plus" ontouchstart="" onclick="changeQ(5)">+5</button>
+      </div>
+    </div>`;
+  }
+
+  const eng = habits.find(h => h.type === 'english');
+  if (eng) {
+    const sel = dd.ingles || '';
+    html += `<div class="section-label">Inglés</div>
+    <div class="icfes-card">
+      <div class="icfes-header">
+        <div class="habit-ico" style="background:var(--purple-dim)">🌐</div>
+        <div class="habit-body">
+          <div class="habit-name">Inglés</div>
+          <div class="habit-sub">Elige tu actividad de hoy</div>
+        </div>
+        <div class="check${sel ? ' done' : ''}">✓</div>
+      </div>
+      <div class="eng-opts">
+        ${[['🦜','Duolingo'],['📰','Leer en inglés'],['🤖','Conversar con IA']].map(([ico,lbl])=>
+          `<div class="eng-opt${sel===lbl?' selected':''}" ontouchstart="" onclick="setIngles('${lbl}')">
+            <span class="eng-opt-ico">${ico}</span>${lbl}
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  const checkHabits = habits.filter(h => h.type === 'check');
+  if (checkHabits.length) {
+    html += `<div class="section-label">Hábitos del día</div>`;
+    checkHabits.forEach(h => {
+      const done = dd.checks && dd.checks[h.id];
+      html += `<div class="habit${done?' done':''}" ontouchstart="" onclick="toggleHabit('${h.id}')">
+        <div class="habit-ico" style="background:${h.bg}">${h.icon}</div>
+        <div class="habit-body">
+          <div class="habit-name">${h.name}</div>
+          ${h.sub ? `<div class="habit-sub">${h.sub}</div>` : ''}
+        </div>
+        <div class="check">✓</div>
+      </div>`;
+    });
+  }
+
+  container.innerHTML = html;
+}
+
+function toggleHabit(id) {
+  const dd = getDay(currentDate);
+  if (!dd.checks) dd.checks = {};
+  dd.checks[id] = !dd.checks[id];
+  setDay(currentDate, dd);
+  renderHoy();
+  document.getElementById('streak-top').textContent = calcStreak();
+}
+
+function changeQ(n) {
+  const dd = getDay(currentDate);
+  dd.icfes = Math.max(0, (dd.icfes||0) + n);
+  setDay(currentDate, dd);
+  const el = document.getElementById('icfes-display');
+  if (el) el.textContent = dd.icfes;
+}
+
+function setIngles(val) {
+  const dd = getDay(currentDate);
+  dd.ingles = dd.ingles === val ? '' : val;
+  setDay(currentDate, dd);
+  renderHoy();
+}
+
+function changeDay(n) {
+  currentDate = new Date(currentDate);
+  currentDate.setDate(currentDate.getDate() + n);
+  renderHoy();
+}
+
+// ═══════════════════════════════════════════
+// RENDER STATS
+// ═══════════════════════════════════════════
+function renderStats() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  let totalQ = 0, bestDay = 0, weekSum = 0, daysStudied = 0;
+  Object.values(DATA).forEach(d => {
+    totalQ += d.icfes||0;
+    if ((d.icfes||0) > bestDay) bestDay = d.icfes||0;
+    if ((d.icfes||0) > 0) daysStudied++;
+  });
+  for(let i=0;i<7;i++){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    weekSum += DATA[dk(d)]?.icfes||0;
+  }
+  const streak = calcStreak();
+  document.getElementById('streak-top').textContent = streak;
+
+  document.getElementById('metrics-grid').innerHTML = `
+    <div class="metric accent">
+      <div class="metric-val">${totalQ}</div>
+      <div class="metric-lbl">Preguntas totales</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--amber)">${streak}</div>
+      <div class="metric-lbl">Racha actual</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--blue)">${bestDay}</div>
+      <div class="metric-lbl">Mejor día</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--pink)">${weekSum > 0 ? Math.round(weekSum/7) : 0}</div>
+      <div class="metric-lbl">Promedio/día (7d)</div>
+    </div>`;
+
+  // Chart ICFES
+  const labels=[], vals=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    labels.push(d.getDate()+'/'+(d.getMonth()+1));
+    vals.push(DATA[dk(d)]?.icfes||0);
+  }
+  if(window._ic) window._ic.destroy();
+  const ctx=document.getElementById('icfesChart').getContext('2d');
+  window._ic = new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Preguntas',data:vals,backgroundColor:'#4da6ff88',borderColor:'#4da6ff',borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7a7a8a',font:{size:9},maxRotation:45,autoSkip:false},grid:{color:'rgba(255,255,255,0.04)'}},
+              y:{beginAtZero:true,ticks:{color:'#7a7a8a',font:{size:10},stepSize:5},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  // Bars
+  const HCONFIGS = [
+    {id:'icfes',name:'ICFES',color:'#4da6ff'},
+    {id:'lectura',name:'Lectura',color:'#00e5a0'},
+    {id:'skincare',name:'Skincare',color:'#ff6b9d'},
+    {id:'ingles',name:'Inglés',color:'#b47aff'},
+    {id:'gym',name:'Gym',color:'#ff5566'},
+    {id:'running',name:'Running',color:'#ffb347'},
+  ];
+  let barsHtml='';
+  HCONFIGS.forEach(h=>{
+    let app=0,done=0;
+    for(let i=0;i<30;i++){
+      const d=new Date(today);d.setDate(d.getDate()-i);
+      const hObj=HABIT_CONFIG.find(x=>x.id===h.id);
+      if(!hObj||!habitApplies(hObj,d))continue;
+      app++;
+      const dd=getDay(d);
+      if(h.id==='icfes'&&(dd.icfes||0)>0)done++;
+      else if(h.id==='ingles'&&dd.ingles)done++;
+      else if(dd.checks&&dd.checks[h.id])done++;
+    }
+    const pct=app>0?Math.round(done/app*100):0;
+    barsHtml+=`<div class="bar-row">
+      <div class="bar-nm">${h.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${h.color}"></div></div>
+      <div class="bar-pct">${pct}%</div>
+    </div>`;
+  });
+  document.getElementById('bars-container').innerHTML=barsHtml;
+
+  // Week
+  const start=new Date(today);start.setDate(today.getDate()-today.getDay());
+  let cellsHtml='',labelsHtml='';
+  for(let i=0;i<7;i++){
+    const d=new Date(start);d.setDate(start.getDate()+i);
+    const s=getDayScore(d);
+    const isToday=dk(d)===dk(today);
+    let bg='#1a1a20';
+    if(s>0)bg=s<0.5?'#003d28':s<0.85?'#00b37a':'#00e5a0';
+    if(s>=1)bg='#00ffb3';
+    cellsHtml+=`<div style="aspect-ratio:1;border-radius:6px;background:${bg};${isToday?'box-shadow:inset 0 0 0 2px #00e5a0':''}" title="${Math.round(s*100)}%"></div>`;
+    labelsHtml+=`<div style="font-size:10px;color:var(--muted);text-align:center">${['D','L','M','X','J','V','S'][d.getDay()]}</div>`;
+  }
+  document.getElementById('week-cells').innerHTML=cellsHtml;
+  document.getElementById('week-days').innerHTML=labelsHtml;
+}
+
+// ═══════════════════════════════════════════
+// RENDER HISTORIAL
+// ═══════════════════════════════════════════
+function renderHistorial() {
+  const today=new Date();today.setHours(0,0,0,0);
+  let hmHtml='';
+  for(let i=59;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const s=getDayScore(d);
+    let bg='#1a1a20';
+    if(s>0)bg=s<0.4?'#003d28':s<0.7?'#00b37a':s<1?'#00e5a0':'#00ffb3';
+    hmHtml+=`<div class="hm-cell" style="background:${bg}" title="${dk(d)} ${Math.round(s*100)}%"></div>`;
+  }
+  document.getElementById('heatmap').innerHTML=hmHtml;
+
+  let histHtml='';
+  for(let i=13;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const dd=getDay(d);
+    const s=getDayScore(d);
+    const pct=Math.round(s*100);
+    histHtml+=`<div class="hist-row">
+      <div class="hist-date">${DAYS_ES[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}</div>
+      <div class="hist-bar"><div class="hist-fill" style="width:${pct}%"></div></div>
+      <div class="hist-pct">${pct}%</div>
+      <div class="hist-q">${dd.icfes||0}p</div>
+    </div>`;
+  }
+  document.getElementById('hist-list').innerHTML=histHtml;
+}
+
+// ═══════════════════════════════════════════
+// RENDER META
+// ═══════════════════════════════════════════
+function renderMeta() {
+  const today=new Date();today.setHours(0,0,0,0);
+  let daysStudied=0,totalQ=0;
+  Object.values(DATA).forEach(d=>{if((d.icfes||0)>0){daysStudied++;totalQ+=d.icfes;}});
+  const daysLeft=Math.max(0,Math.round((ICFES_TIMESTAMP-Date.now())/(1000*60*60*24)));
+
+  document.getElementById('meta-metrics').innerHTML=`
+    <div class="metric">
+      <div class="metric-val" style="color:var(--blue)">${daysStudied}</div>
+      <div class="metric-lbl">Días estudiando</div>
+    </div>
+    <div class="metric accent">
+      <div class="metric-val">${daysLeft}</div>
+      <div class="metric-lbl">Días para el ICFES</div>
+    </div>`;
+
+  // Progress chart: cumulative questions
+  const labels=[], vals=[];
+  let cum=0;
+  for(let i=29;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    cum+=DATA[dk(d)]?.icfes||0;
+    labels.push(d.getDate()+'/'+(d.getMonth()+1));
+    vals.push(cum);
+  }
+  if(window._prog) window._prog.destroy();
+  const ctx2=document.getElementById('progressChart').getContext('2d');
+  window._prog = new Chart(ctx2,{
+    type:'line',
+    data:{labels,datasets:[{label:'Preguntas acumuladas',data:vals,borderColor:'#4da6ff',backgroundColor:'rgba(77,166,255,0.1)',fill:true,tension:.4,pointRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7a7a8a',font:{size:9},maxRotation:45,autoSkip:true},grid:{color:'rgba(255,255,255,0.04)'}},
+              y:{beginAtZero:true,ticks:{color:'#7a7a8a',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  // Times list
+  const times=loadTimes();
+  let timesHtml='';
+  if(times.length===0){
+    timesHtml='<div style="font-size:13px;color:var(--muted);padding:8px 0">Aún no has registrado tiempos</div>';
+  } else {
+    const sorted=[...times].sort();
+    sorted.forEach((t,i)=>{
+      const isBest=i===0;
+      const isUnder50=timeToSecs(t)<3000;
+      timesHtml+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="font-family:var(--font-mono);font-size:16px;font-weight:500;color:${isBest?'var(--green)':isUnder50?'var(--amber)':'var(--text)'}">${t}</div>
+        ${isBest?'<span style="font-size:10px;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px">PR</span>':''}
+        ${isUnder50&&!isBest?'<span style="font-size:10px;background:var(--amber-dim);color:var(--amber);padding:2px 8px;border-radius:10px">✓ META</span>':''}
+        <button onclick="deleteTime(${times.indexOf(t)})" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px">×</button>
+      </div>`;
+    });
+    const best=sorted[0];
+    const diff=timeToSecs(best)-3000;
+    if(diff<0) timesHtml+=`<div style="font-size:12px;color:var(--green);margin-top:8px">🎉 ¡Meta lograda! ${Math.abs(diff)}s bajo 50:00</div>`;
+    else timesHtml+=`<div style="font-size:12px;color:var(--muted);margin-top:8px">Faltan ${diff}s para bajar de 50:00</div>`;
+  }
+  document.getElementById('times-list').innerHTML=timesHtml;
+}
+
+function timeToSecs(s){
+  const [m,sec]=(s||'0:0').split(':').map(Number);
+  return (m||0)*60+(sec||0);
+}
+
+function addTime(){
+  const input=document.getElementById('time-input');
+  const val=input.value.trim();
+  if(!/^\d{1,2}:\d{2}$/.test(val)){alert('Formato MM:SS — ejemplo: 52:30');return;}
+  const times=loadTimes();
+  times.push(val);
+  saveTimes(times);
+  input.value='';
+  renderMeta();
+}
+
+function deleteTime(i){
+  const times=loadTimes();
+  times.splice(i,1);
+  saveTimes(times);
+  renderMeta();
+}
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+function switchTab(name, el) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='stats') renderStats();
+  if(name==='historial') renderHistorial();
+  if(name==='meta') renderMeta();
+}
+
+// ═══════════════════════════════════════════
+// PWA INSTALL
+// ═══════════════════════════════════════════
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  setTimeout(()=>{ document.getElementById('install-banner').style.display='block'; }, 2000);
+});
+document.getElementById('install-btn').addEventListener('click', async () => {
+  document.getElementById('install-banner').style.display='none';
+  if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; }
+});
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.getElementById('streak-top').textContent = calcStreak();
+renderHoy();
+</script>
+<script>
+if("serviceWorker" in navigator){
+  // Funciona tanto en GitHub Pages (/habitos-icfes/) como en raíz (/)
+  const swPath = location.pathname.replace(/\/[^/]*$/, '/') + 'sw.js';
+  navigator.serviceWorker.register(swPath).catch(()=>{});
+}
+</script>
+</body>
+</html>
