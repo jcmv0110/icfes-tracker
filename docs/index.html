@@ -259,6 +259,23 @@
 
 <!-- HOY -->
 <div class="screen active" id="screen-hoy">
+  <!-- Frase motivadora del día -->
+  <div id="quote-box" style="margin-bottom:16px;display:none">
+    <div id="quote-card" style="background:linear-gradient(135deg,rgba(0,229,160,0.08),rgba(77,166,255,0.06));border:1px solid rgba(0,229,160,0.2);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-10px;left:10px;font-size:60px;opacity:0.06;font-family:Georgia,serif;line-height:1">"</div>
+      <div id="quote-lang-badge" style="display:none;margin-bottom:8px">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--purple);background:var(--purple-dim);padding:3px 8px;border-radius:20px"></span>
+      </div>
+      <div id="quote-text" style="font-size:15px;font-weight:500;line-height:1.6;color:var(--text);font-style:italic;margin-bottom:10px"></div>
+      <div id="quote-translation" style="display:none;font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;padding-top:8px;border-top:1px solid var(--border)"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div id="quote-author" style="font-size:11px;font-weight:700;color:var(--green);font-family:var(--font-mono)"></div>
+        <button onclick="refreshQuote(true)" id="quote-refresh-btn" title="Nueva frase"
+          style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px;line-height:1">↻</button>
+      </div>
+    </div>
+  </div>
+
   <div class="date-nav">
     <button class="nav-btn" onclick="changeDay(-1)">‹</button>
     <div class="date-info">
@@ -694,6 +711,7 @@ async function authGoogle() {
     setSyncStatus('syncing','sync...');
     await fbSync();
     await checkOnboarding();
+    refreshQuote();
     setInterval(async()=>{ try { const f=await firebase.auth(getFirebaseApp()).currentUser?.getIdToken(true); if(f){currentUser.idToken=f;currentUser.expiresAt=Date.now()+3500000;localStorage.setItem('fb_auth',JSON.stringify(currentUser));} } catch(e){} fbSync(); }, 60000);
   } catch(e) {
     if (e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request') return;
@@ -754,6 +772,7 @@ async function onAuthSuccess(data, name) {
   setSyncStatus('syncing','sync...');
   await fbSync();
   await checkOnboarding();
+  refreshQuote();
   setInterval(async()=>{ if(currentUser&&Date.now()>currentUser.expiresAt-60000) await refreshToken(); fbSync(); }, 60000);
 }
 
@@ -926,7 +945,7 @@ PASO 1 — Meta principal:
 Pregunta: "¿Tu meta principal es prepararte para el ICFES?"
 - Si SÍ → sigue el flujo ICFES:
     * Pregunta el puntaje objetivo
-    * Según el puntaje calcula meta diaria de preguntas: 300-350→25/día, 351-400→35/día, 401-450→55/día, 451-500→60/día, 500+→75/día
+    * Según el puntaje calcula meta diaria de preguntas: 300-350→15/día, 351-400→25/día, 401-450→40/día, 451-500→60/día, 500+→75/día
     * Pregunta la fecha del examen (default: 26 julio 2026)
 - Si NO → pregunta cuál es su meta principal (maratón, aprender algo, fitness, trabajo, etc.)
     * Adapta los hábitos completamente a esa meta
@@ -1370,6 +1389,117 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPro
 document.getElementById('install-btn').addEventListener('click',async()=>{document.getElementById('install-banner').style.display='none';if(deferredPrompt){deferredPrompt.prompt();deferredPrompt=null;}});
 
 // ═══════════════════════════════════════════════════════
+// FRASE MOTIVADORA DEL DÍA
+// ═══════════════════════════════════════════════════════
+async function refreshQuote(force = false) {
+  const today = dk(new Date());
+  const cacheKey = 'daily_quote_' + today;
+  const cached = !force && (() => { try { return JSON.parse(localStorage.getItem(cacheKey)||'null'); } catch(e) { return null; } })();
+  if (cached) { displayQuote(cached); return; }
+
+  // Show loading state
+  const box = document.getElementById('quote-box');
+  box.style.display = 'block';
+  document.getElementById('quote-text').textContent = '...';
+  document.getElementById('quote-author').textContent = '';
+  document.getElementById('quote-translation').style.display = 'none';
+  document.getElementById('quote-refresh-btn').style.opacity = '0.4';
+
+  try {
+    const key = await getOpenAIKey();
+    if (!key) return;
+
+    const goal = USER_PROFILE?.mainGoal || 'general';
+    const goalDetail = USER_PROFILE?.goalDetail || '';
+    const language = USER_PROFILE?.language || '';
+    const langInstruction = language
+      ? `La frase DEBE estar escrita en ${language}. Incluye también la traducción al español en el campo "translation".`
+      : 'La frase debe estar en español. Deja "translation" vacío.';
+
+    const prompt = `Genera UNA frase motivadora para alguien cuya meta principal es: "${goal}${goalDetail ? ' — '+goalDetail : ''}".
+
+${langInstruction}
+
+La frase puede ser:
+- Una cita real de una persona famosa. Prioriza estos autores: David Goggins, Jeff Bezos, Naval Ravikant, Elon Musk, Kobe Bryant, Michelle Obama, Steve Jobs, Marcus Aurelius, Seneca, Freddy Vega, Dale Carnegie, Ryan Holiday, James Clear. También puedes usar otros autores relevantes.
+- O una frase original poderosa relacionada con la meta
+
+Responde ÚNICAMENTE con este JSON (sin markdown, sin texto extra):
+{"quote":"la frase aquí","author":"Nombre del autor o 'Anónimo'","translation":"traducción al español si aplica, si no deja vacío","language":"${language || 'es'}"}`;
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.9 })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    let quoteData;
+    const raw = data.choices[0].message.content.replace(/```json|```/g,'').trim();
+    try { quoteData = JSON.parse(raw); } catch(e) {
+      // Try to extract JSON if there's extra text
+      const match = raw.match(/\{[\s\S]*\}/);
+      quoteData = match ? JSON.parse(match[0]) : null;
+    }
+    if (!quoteData) throw new Error('Invalid response');
+
+    localStorage.setItem(cacheKey, JSON.stringify(quoteData));
+    displayQuote(quoteData);
+  } catch(e) {
+    console.error('Quote error:', e);
+    // Fallback quote
+    const fallbacks = [
+      { quote: "La disciplina es el puente entre las metas y los logros.", author: "Jim Rohn", translation: "", language: "es" },
+      { quote: "Stay hard.", author: "David Goggins", translation: "Mantente firme.", language: "en" },
+      { quote: "The only way to do great work is to love what you do.", author: "Steve Jobs", translation: "La única forma de hacer un gran trabajo es amar lo que haces.", language: "en" },
+      { quote: "Small habits make a big difference. It's not about being perfect, it's about being consistent.", author: "James Clear", translation: "Los pequeños hábitos marcan una gran diferencia. No se trata de ser perfecto, sino de ser constante.", language: "en" },
+      { quote: "El obstáculo en el camino se convierte en el camino.", author: "Ryan Holiday", translation: "", language: "es" },
+      { quote: "Puedes ganar más amigos en dos meses interesándote en los demás que en dos años intentando que los demás se interesen en ti.", author: "Dale Carnegie", translation: "", language: "es" },
+      { quote: "No pares cuando estés cansado. Para cuando hayas terminado.", author: "Freddy Vega", translation: "", language: "es" },
+      { quote: "You are in danger of living a life so comfortable and soft that you will die without ever realizing your true potential.", author: "David Goggins", translation: "Corres el riesgo de vivir una vida tan cómoda que morirás sin jamás alcanzar tu verdadero potencial.", language: "en" },
+    ];
+    const fb = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    displayQuote(fb);
+  }
+  document.getElementById('quote-refresh-btn').style.opacity = '1';
+}
+
+function displayQuote(data) {
+  if (!data) return;
+  const box = document.getElementById('quote-box');
+  box.style.display = 'block';
+
+  // Adjust font size based on quote length
+  const len = (data.quote || '').length;
+  const fontSize = len < 60 ? '18px' : len < 120 ? '15px' : '13px';
+  const quoteEl = document.getElementById('quote-text');
+  quoteEl.textContent = '"' + data.quote + '"';
+  quoteEl.style.fontSize = fontSize;
+
+  document.getElementById('quote-author').textContent = '— ' + (data.author || 'Anónimo');
+
+  // Show language badge if not spanish
+  const badge = document.getElementById('quote-lang-badge');
+  const lang = data.language || 'es';
+  if (lang !== 'es' && lang !== 'español') {
+    badge.style.display = 'block';
+    badge.querySelector('span').textContent = lang;
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Show translation if available
+  const transEl = document.getElementById('quote-translation');
+  if (data.translation) {
+    transEl.textContent = '🇨🇴 ' + data.translation;
+    transEl.style.display = 'block';
+  } else {
+    transEl.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 document.getElementById('streak-top').textContent=calcStreak();
@@ -1385,7 +1515,7 @@ if(savedAuth){
       else showLoginScreen();
     });
   } else {
-    fbSync().then(()=>checkOnboarding());
+    fbSync().then(()=>{ checkOnboarding(); refreshQuote(); });
     setSyncStatus('syncing','sync...');
     setInterval(async()=>{if(currentUser&&Date.now()>currentUser.expiresAt-60000)await refreshToken();fbSync();},60000);
   }
