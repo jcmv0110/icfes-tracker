@@ -481,25 +481,16 @@ let DB_URL = FB_CFG.dbUrl.replace(/\/$/,'');
 let currentUser = null;
 
 // ═══════════════════════════════════════════════════════
-// HÁBITOS — dinámicos (se cargan desde Firebase/localStorage)
+// HÁBITOS — 100% dinámicos, definidos por la IA en el onboarding
 // ═══════════════════════════════════════════════════════
-const DEFAULT_HABITS = [
-  { id:'icfes', name:'Preguntas ICFES', icon:'📚', color:'#4da6ff', bg:'rgba(77,166,255,0.12)', type:'number', always:true, dailyGoal:30 },
-  { id:'lectura', name:'Lectura', icon:'📖', color:'#00e5a0', bg:'rgba(0,229,160,0.12)', type:'check', always:true, sub:'Al menos 20 min' },
-  { id:'skincare', name:'Skincare', icon:'✨', color:'#ff6b9d', bg:'rgba(255,107,157,0.12)', type:'check', always:true, sub:'Rutina diaria' },
-  { id:'ingles', name:'Inglés', icon:'🌐', color:'#b47aff', bg:'rgba(180,122,255,0.12)', type:'english', always:true },
-  { id:'gym', name:'Gym', icon:'🏋️', color:'#ff5566', bg:'rgba(255,85,102,0.12)', type:'check', days:[1,3,5], sub:'Lunes · Miércoles · Viernes' },
-  { id:'running', name:'Running', icon:'🏃', color:'#ffb347', bg:'rgba(255,179,71,0.12)', type:'check', dynamicDays:true, sub:'Meta: -50 min 10K' }
-];
-
 let HABIT_CONFIG = loadHabitConfig();
-let USER_PROFILE = loadUserProfile(); // { mainGoal, icfesScore, icfesTarget, icfesDate, sports, etc. }
+let USER_PROFILE = loadUserProfile();
 
 function loadHabitConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem('habit_config_v1') || 'null');
-    return saved || DEFAULT_HABITS;
-  } catch(e) { return DEFAULT_HABITS; }
+    return saved || [];
+  } catch(e) { return []; }
 }
 function saveHabitConfig(cfg) {
   localStorage.setItem('habit_config_v1', JSON.stringify(cfg));
@@ -515,17 +506,13 @@ function saveUserProfile(p) {
   fbWrite('userProfile', p);
 }
 
-// Switch date for running days
-const SWITCH_DATE = new Date(2026, 6, 4);
 const DAYS_ES  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
-function getRunningDays(date) { return date >= SWITCH_DATE ? [2,4,5,0] : [2,4,6,0]; }
 function habitApplies(h, date) {
   if (h.always) return true;
   if (h.days && h.days.length > 0) return h.days.includes(date.getDay());
-  if (h.dynamicDays) return getRunningDays(date).includes(date.getDay());
-  // If no day config specified, show every day
+  // No day restriction = every day
   return true;
 }
 
@@ -580,7 +567,10 @@ function getDayScore(date) {
   let total = 0, done = 0;
   habits.forEach(h => {
     total++;
-    if (h.type==='number' && (dd.icfes||0)>0) done++;
+    if (h.type==='number') {
+      const val = h.id==='icfes' ? (dd.icfes||0) : (dd.counters?.[h.id]||0);
+      if (val > 0) done++;
+    }
     else if (h.type==='english' && dd.ingles) done++;
     else if (h.type==='check' && dd.checks && dd.checks[h.id]) done++;
   });
@@ -936,34 +926,41 @@ Tu flujo de conversación ES ESTE EXACTO — sigue este orden:
    - Pregunta la fecha exacta del examen (si no la saben, usa 26 julio 2026)
 2. Pregunta si estudia algún idioma (inglés u otro). Si sí, ¿cuál?
 3. Pregunta si le gusta leer. Si sí, ¿cuántos minutos al día quiere dedicar?
-4. Pregunta si hace algún deporte. Si sí: ¿cuál? ¿Qué días? 
+4. Pregunta si hace algún deporte. Si sí: ¿cuál? ¿Qué días?
    - Si menciona varios deportes (ej: gym y running), pregunta los días de cada uno por separado
-5. Pregunta si quiere algún otro hábito extra (skincare, meditación, agua, etc). Si dice no, termina.
-6. Cuando tengas todo, genera la config final CON EL FORMATO EXACTO indicado abajo. SIEMPRE incluye HABITS_CONFIG: aunque sea el último mensaje.
+5. Pregunta si quiere algún otro hábito extra. Si dice no, termina.
+6. Cuando tengas todo, genera la config final.
 
-CRÍTICO: Cuando el usuario diga que no quiere más hábitos o que ya es suficiente, DEBES responder INMEDIATAMENTE con HABITS_CONFIG: seguido del JSON. No preguntes nada más.
+CRÍTICO: Cuando el usuario diga que no quiere más hábitos, DEBES responder INMEDIATAMENTE con HABITS_CONFIG: seguido del JSON. No preguntes nada más.
 
-IMPORTANTE: Sé breve. Máximo 3-4 líneas por mensaje. Un emoji al inicio está bien.
+IMPORTANTE: Sé breve. Máximo 3-4 líneas por mensaje.
 
-Cuando tengas TODA la información, responde con este formato EXACTO al final:
+TIPOS DE HÁBITO — tú decides cuál usar según el contexto:
+- "number": hábitos donde tiene sentido contar una cantidad (preguntas ICFES, vasos de agua, km corridos, páginas leídas, minutos de meditación, etc.)
+- "check": hábitos de sí/no (gym, skincare, dormir bien, etc.)
+- "english": SOLO para idiomas, muestra opciones Duolingo/Leer/IA
+
+Cuando tengas TODA la información, responde con este formato EXACTO:
 HABITS_CONFIG:
 [JSON array de hábitos]
 
-El JSON debe tener este formato por hábito:
+Formato por hábito:
 {
-  "id": "unique_id",
+  "id": "snake_case_unico",
   "name": "Nombre del hábito",
   "icon": "emoji",
   "color": "#hexcolor",
   "bg": "rgba(r,g,b,0.12)",
   "type": "check|number|english",
-  "always": true|false,
-  "days": [0,1,2,3,4,5,6] (solo si no es always; 0=dom,1=lun,...6=sáb),
-  "sub": "descripción corta",
-  "dailyGoal": number (solo para type:number)
+  "always": true,
+  "days": [1,2,3,4,5] (SOLO si NO es always:true; 0=dom,1=lun,...6=sáb),
+  "sub": "descripción corta motivadora",
+  "dailyGoal": 30,
+  "unit": "preguntas"
 }
 
-Para el perfil del usuario también incluye al final:
+Notas: "dailyGoal" y "unit" solo para type:"number". Si el hábito aplica todos los días usa "always":true y omite "days".
+
 USER_PROFILE:
 {"mainGoal":"icfes","icfesDate":"2026-07-26","icfesScore":450,"icfesTarget":75,"language":"inglés"}`;
 }
@@ -1180,10 +1177,13 @@ function changeCounter(id, n) {
   const el = document.getElementById('counter-display-'+id);
   if (el) el.textContent = val;
   const h = HABIT_CONFIG.find(x => x.id === id);
-  const goal = h?.dailyGoal || 1;
+  const goal = h?.dailyGoal || 30;
   const pct = Math.min(100, Math.round(val/goal*100));
   const bar = document.getElementById('bar-'+id);
   if (bar) bar.style.width = pct + '%';
+  // Update percentage text
+  const barRow = bar?.closest('.meta-bar-wrap')?.querySelector('.meta-bar-row span:last-child');
+  if (barRow) barRow.textContent = pct + '%';
 }
 function changeQ(n) { changeCounter('icfes', n); }
 
