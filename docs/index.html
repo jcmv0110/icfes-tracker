@@ -1407,7 +1407,7 @@ async function refreshQuote(force = false) {
 
   try {
     const key = await getOpenAIKey();
-    if (!key) return;
+    if (!key) throw new Error('no key'); // go to fallback
 
     const goal = USER_PROFILE?.mainGoal || 'general';
     const goalDetail = USER_PROFILE?.goalDetail || '';
@@ -1504,6 +1504,18 @@ function displayQuote(data) {
 // ═══════════════════════════════════════════════════════
 document.getElementById('streak-top').textContent=calcStreak();
 renderHoy();
+
+// Show a fallback quote immediately while waiting for auth/AI
+const _fallbackQuotes = [
+  { quote: "La disciplina es el puente entre las metas y los logros.", author: "Jim Rohn", language: "es" },
+  { quote: "No pares cuando estés cansado. Para cuando hayas terminado.", author: "Freddy Vega", language: "es" },
+  { quote: "El obstáculo en el camino se convierte en el camino.", author: "Ryan Holiday", language: "es" },
+  { quote: "Puedes ganar más amigos en dos meses interesándote en los demás que en dos años intentando que los demás se interesen en ti.", author: "Dale Carnegie", language: "es" },
+  { quote: "Small habits make a big difference.", author: "James Clear", translation: "Los pequeños hábitos marcan una gran diferencia.", language: "en" },
+  { quote: "Stay hard.", author: "David Goggins", translation: "Mantente firme.", language: "en" },
+];
+const _todayFallback = _fallbackQuotes[new Date().getDate() % _fallbackQuotes.length];
+displayQuote(_todayFallback);
 
 const savedAuth=getSavedAuth();
 if(savedAuth){
