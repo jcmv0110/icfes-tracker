@@ -523,9 +523,10 @@ const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','
 function getRunningDays(date) { return date >= SWITCH_DATE ? [2,4,5,0] : [2,4,6,0]; }
 function habitApplies(h, date) {
   if (h.always) return true;
-  if (h.days) return h.days.includes(date.getDay());
+  if (h.days && h.days.length > 0) return h.days.includes(date.getDay());
   if (h.dynamicDays) return getRunningDays(date).includes(date.getDay());
-  return false;
+  // If no day config specified, show every day
+  return true;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1102,27 +1103,30 @@ function renderHoy() {
   const container=document.getElementById('habits-container');
   let html='';
 
-  // ICFES number habit
-  const icfes=habits.find(h=>h.type==='number');
-  if (icfes) {
-    const val=dd.icfes||0, goal=icfes.dailyGoal||30, pct=Math.min(100,Math.round(val/goal*100));
-    html+=`<div class="section-label">Estudio</div>
+  // Number habits (ICFES and any other counter like water, steps...)
+  const numberHabits = habits.filter(h => h.type === 'number');
+  numberHabits.forEach(h => {
+    const val = h.id === 'icfes' ? (dd.icfes||0) : (dd.counters?.[h.id]||0);
+    const goal = h.dailyGoal || 1;
+    const pct = Math.min(100, Math.round(val/goal*100));
+    const isIcfes = h.id === 'icfes';
+    html += `<div class="section-label">${h.name}</div>
     <div class="icfes-card">
       <div class="icfes-header">
-        <div class="habit-ico" style="background:${icfes.bg||'rgba(77,166,255,0.12)'}">${icfes.icon}</div>
-        <div class="habit-body"><div class="habit-name">${icfes.name}</div><div class="habit-sub">Meta diaria: ${goal} preguntas</div></div>
+        <div class="habit-ico" style="background:${h.bg||'rgba(77,166,255,0.12)'}">${h.icon}</div>
+        <div class="habit-body"><div class="habit-name">${h.name}</div><div class="habit-sub">Meta diaria: ${goal} ${h.unit||'unidades'}</div></div>
       </div>
-      <div class="icfes-big" id="icfes-display">${val}</div>
-      <div class="icfes-label">preguntas hoy</div>
+      <div class="icfes-big" id="counter-display-${h.id}" style="color:${h.color||'var(--blue)'}">${val}</div>
+      <div class="icfes-label">${h.unit||'hoy'}</div>
       <div class="meta-bar-wrap">
         <div class="meta-bar-row"><span>Progreso</span><span>${pct}%</span></div>
-        <div class="meta-bar-track"><div class="meta-bar-fill" id="icfes-bar" style="width:${pct}%"></div></div>
+        <div class="meta-bar-track"><div class="meta-bar-fill" id="bar-${h.id}" style="width:${pct}%;background:${h.color||'var(--blue)'}"></div></div>
       </div>
       <div class="icfes-btns">
-        <button class="q-btn minus" onclick="changeQ(-5)">−5</button>
-        <button class="q-btn minus" onclick="changeQ(-1)">−1</button>
-        <button class="q-btn plus" onclick="changeQ(1)">+1</button>
-        <button class="q-btn plus" onclick="changeQ(5)">+5</button>
+        <button class="q-btn minus" onclick="changeCounter('${h.id}',-5)">−5</button>
+        <button class="q-btn minus" onclick="changeCounter('${h.id}',-1)">−1</button>
+        <button class="q-btn plus" style="color:${h.color||'var(--blue)'}" onclick="changeCounter('${h.id}',1)">+1</button>
+        <button class="q-btn plus" style="color:${h.color||'var(--blue)'}" onclick="changeCounter('${h.id}',5)">+5</button>
       </div>
     </div>`;
   }
@@ -1163,17 +1167,30 @@ function renderHoy() {
   container.innerHTML=html;
 }
 
+function changeCounter(id, n) {
+  const dd = getDay(currentDate);
+  if (id === 'icfes') {
+    dd.icfes = Math.max(0, (dd.icfes||0) + n);
+  } else {
+    if (!dd.counters) dd.counters = {};
+    dd.counters[id] = Math.max(0, (dd.counters[id]||0) + n);
+  }
+  setDay(currentDate, dd);
+  const val = id === 'icfes' ? dd.icfes : dd.counters[id];
+  const el = document.getElementById('counter-display-'+id);
+  if (el) el.textContent = val;
+  const h = HABIT_CONFIG.find(x => x.id === id);
+  const goal = h?.dailyGoal || 1;
+  const pct = Math.min(100, Math.round(val/goal*100));
+  const bar = document.getElementById('bar-'+id);
+  if (bar) bar.style.width = pct + '%';
+}
+function changeQ(n) { changeCounter('icfes', n); }
+
 function toggleHabit(id) {
   const dd=getDay(currentDate); if (!dd.checks) dd.checks={};
   dd.checks[id]=!dd.checks[id]; setDay(currentDate,dd); renderHoy();
   document.getElementById('streak-top').textContent=calcStreak();
-}
-function changeQ(n) {
-  const dd=getDay(currentDate); dd.icfes=Math.max(0,(dd.icfes||0)+n); setDay(currentDate,dd);
-  const el=document.getElementById('icfes-display'); if(el) el.textContent=dd.icfes;
-  const goal=HABIT_CONFIG.find(h=>h.type==='number')?.dailyGoal||30;
-  const pct=Math.min(100,Math.round(dd.icfes/goal*100));
-  const bar=document.getElementById('icfes-bar'); if(bar) bar.style.width=pct+'%';
 }
 function setIngles(val) {
   const dd=getDay(currentDate); dd.ingles=dd.ingles===val?'':val; setDay(currentDate,dd); renderHoy();
