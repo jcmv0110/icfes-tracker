@@ -913,7 +913,7 @@ async function sendChatMessage() {
     hideTyping();
     if (data.error) throw new Error(data.error.message);
     const reply = data.choices[0].message.content;
-    // Check if AI is returning final JSON config
+    // Check if AI is returning final JSON config — look for the marker anywhere in the reply
     if (reply.includes('HABITS_CONFIG:')) {
       await processHabitsConfig(reply);
     } else {
@@ -938,7 +938,9 @@ Tu flujo de conversación ES ESTE EXACTO — sigue este orden:
 4. Pregunta si hace algún deporte. Si sí: ¿cuál? ¿Qué días? 
    - Si menciona varios deportes (ej: gym y running), pregunta los días de cada uno por separado
 5. Pregunta si quiere algún otro hábito extra (skincare, meditación, agua, etc). Si dice no, termina.
-6. Cuando tengas todo, genera la config final.
+6. Cuando tengas todo, genera la config final CON EL FORMATO EXACTO indicado abajo. SIEMPRE incluye HABITS_CONFIG: aunque sea el último mensaje.
+
+CRÍTICO: Cuando el usuario diga que no quiere más hábitos o que ya es suficiente, DEBES responder INMEDIATAMENTE con HABITS_CONFIG: seguido del JSON. No preguntes nada más.
 
 IMPORTANTE: Sé breve. Máximo 3-4 líneas por mensaje. Un emoji al inicio está bien.
 
@@ -982,38 +984,79 @@ Mismo formato que antes. Sé breve, máximo 3-4 líneas por mensaje.`;
 
 async function processHabitsConfig(reply) {
   try {
-    // Extract HABITS_CONFIG JSON
-    const habitMatch = reply.match(/HABITS_CONFIG:\s*(\[[\s\S]*?\])/);
-    // Extract USER_PROFILE JSON
-    const profileMatch = reply.match(/USER_PROFILE:\s*(\{[\s\S]*?\})/);
+    // Robust extraction — find the JSON array even if multiline or with extra text
+    let newHabits = null;
+    let profile = null;
 
-    if (habitMatch) {
-      const newHabits = JSON.parse(habitMatch[1]);
-      saveHabitConfig(newHabits);
-    }
-    if (profileMatch) {
-      const profile = JSON.parse(profileMatch[1]);
-      saveUserProfile(profile);
-      // Update countdown if date provided
-      if (profile.icfesDate) {
-        ICFES_TIMESTAMP = new Date(profile.icfesDate+'T07:00:00-05:00').getTime();
+    // Try to extract HABITS_CONFIG block
+    const habitIdx = reply.indexOf('HABITS_CONFIG:');
+    if (habitIdx !== -1) {
+      const afterLabel = reply.slice(habitIdx + 'HABITS_CONFIG:'.length).trim();
+      // Find the opening bracket
+      const startBracket = afterLabel.indexOf('[');
+      if (startBracket !== -1) {
+        // Find matching closing bracket by counting brackets
+        let depth = 0, end = -1;
+        for (let i = startBracket; i < afterLabel.length; i++) {
+          if (afterLabel[i] === '[' || afterLabel[i] === '{') depth++;
+          else if (afterLabel[i] === ']' || afterLabel[i] === '}') { depth--; if (depth === 0 && afterLabel[i] === ']') { end = i; break; } }
+        }
+        if (end !== -1) {
+          try { newHabits = JSON.parse(afterLabel.slice(startBracket, end + 1)); } catch(e) {
+            // Try stripping markdown code blocks
+            const clean = afterLabel.slice(startBracket, end + 1).replace(/```json|```/g, '').trim();
+            try { newHabits = JSON.parse(clean); } catch(e2) { console.error('Habits JSON parse error:', e2); }
+          }
+        }
       }
     }
 
-    if (chatMode==='onboarding') {
+    // Try to extract USER_PROFILE block
+    const profileIdx = reply.indexOf('USER_PROFILE:');
+    if (profileIdx !== -1) {
+      const afterLabel = reply.slice(profileIdx + 'USER_PROFILE:'.length).trim();
+      const startBrace = afterLabel.indexOf('{');
+      if (startBrace !== -1) {
+        let depth = 0, end = -1;
+        for (let i = startBrace; i < afterLabel.length; i++) {
+          if (afterLabel[i] === '{') depth++;
+          else if (afterLabel[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+        }
+        if (end !== -1) {
+          try { profile = JSON.parse(afterLabel.slice(startBrace, end + 1)); } catch(e) { console.error('Profile JSON parse error:', e); }
+        }
+      }
+    }
+
+    if (newHabits && Array.isArray(newHabits) && newHabits.length > 0) {
+      saveHabitConfig(newHabits);
+    } else if (!newHabits) {
+      // If no habits config found but no error, just continue the chat
+      addChatMessage('ai', reply.replace(/HABITS_CONFIG:[\s\S]*/,'').trim() || '¿Algo más que quieras configurar?');
+      return;
+    }
+
+    if (profile) {
+      saveUserProfile(profile);
+      if (profile.icfesDate) {
+        ICFES_TIMESTAMP = new Date(profile.icfesDate + 'T07:00:00-05:00').getTime();
+      }
+    }
+
+    if (chatMode === 'onboarding') {
       await fbWrite('onboardingDone', true);
-      addChatMessage('ai', '¡Listo! 🎉 Tus hábitos han sido configurados personalmente. ¡A darle que el ICFES no espera!');
+      addChatMessage('ai', '¡Listo! 🎉 Tus hábitos han sido configurados personalmente. Toca la X para cerrar y empezar a usarla.');
       document.getElementById('chat-close-btn').style.display = 'block';
       chatDone = true;
     } else {
-      addChatMessage('ai', '✅ Hábitos actualizados. ¡Sigue así!');
+      addChatMessage('ai', '✅ Hábitos actualizados correctamente. ¡Sigue así!');
       document.getElementById('chat-close-btn').style.display = 'block';
     }
     renderHoy();
     renderMeta();
   } catch(e) {
+    console.error('processHabitsConfig error:', e);
     addChatMessage('ai', 'Hubo un problema guardando la configuración. Intenta de nuevo.');
-    console.error(e);
   }
 }
 
