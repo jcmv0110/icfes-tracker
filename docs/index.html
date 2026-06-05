@@ -922,8 +922,8 @@ function getOnboardingSystemPrompt() {
   
 Tu flujo de conversación ES ESTE EXACTO — sigue este orden:
 1. Si el usuario menciona ICFES: pregunta su puntaje objetivo (ej: 400, 450, 500).
-   - Según el puntaje, establece meta diaria de preguntas: 300-350pts→15/día, 351-400pts→25/día, 401-450pts→40/día, 451-500pts→60/día, 500+pts→75/día
-   - Pregunta la fecha exacta del examen (si no la saben, usa 26 julio 2026)
+   - Según el puntaje, establece meta diaria de preguntas: 300-350pts→20/día, 351-400pts→35/día, 401-450pts→60/día, 451-500pts→60/día, 500+pts→75/día
+   - Pregunta la fecha exacta del examen (si no la saben, usa 26 julio 2026 a las 7:00 am)
 2. Pregunta si estudia algún idioma (inglés u otro). Si sí, ¿cuál?
 3. Pregunta si le gusta leer. Si sí, ¿cuántos minutos al día quiere dedicar?
 4. Pregunta si hace algún deporte. Si sí: ¿cuál? ¿Qué días?
@@ -936,9 +936,9 @@ CRÍTICO: Cuando el usuario diga que no quiere más hábitos, DEBES responder IN
 IMPORTANTE: Sé breve. Máximo 3-4 líneas por mensaje.
 
 TIPOS DE HÁBITO — tú decides cuál usar según el contexto:
-- "number": hábitos donde tiene sentido contar una cantidad (preguntas ICFES, vasos de agua, km corridos, páginas leídas, minutos de meditación, etc.)
-- "check": hábitos de sí/no (gym, skincare, dormir bien, etc.)
-- "english": SOLO para idiomas, muestra opciones Duolingo/Leer/IA
+- "number": hábitos donde tiene sentido contar una cantidad (preguntas ICFES, vasos de agua, etc.)
+- "check": hábitos de sí/no (gym, skincare, dormir bien, leer, meditación, etc.)
+- "english": SOLO para idiomas, muestra opciones Duolingo/Leer/IA/Podcast/Película
 
 Cuando tengas TODA la información, responde con este formato EXACTO:
 HABITS_CONFIG:
