@@ -328,11 +328,11 @@
 </div>
 
 <!-- META -->
-<div class="screen" id="screen-meta">
+<div class="screen" id="screen-meta" style="padding-top:16px">
   <!-- Lista de metas -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 2px">
     <div style="font-size:16px;font-weight:700">Mis metas</div>
-    <button onclick="openGoalModal()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--green);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer">+ Agregar</button>
+    <button onclick="openGoalModal()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--green);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0">+ Agregar</button>
   </div>
   <div id="goals-list"></div>
 
@@ -1613,7 +1613,7 @@ function switchTab(name, el) {
   el.classList.add('active');
   if(name==='stats')renderStats();
   if(name==='historial')renderHistorial();
-  if(name==='meta')renderMeta();
+  if(name==='meta'){ renderMeta(); renderGoals(); }
 }
 
 // ═══════════════════════════════════════════════════════
