@@ -329,22 +329,72 @@
 
 <!-- META -->
 <div class="screen" id="screen-meta">
-  <div id="meta-goal-card" class="running-goal">
-    <div class="goal-title" id="meta-goal-title">🏅 Meta principal</div>
-    <div class="goal-detail" id="meta-goal-detail">Configura tu meta en el onboarding</div>
+  <!-- Lista de metas -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-size:16px;font-weight:700">Mis metas</div>
+    <button onclick="openGoalModal()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--green);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-size:13px;font-weight:700;cursor:pointer">+ Agregar</button>
   </div>
-  <div class="chart-card" style="margin-top:12px">
+  <div id="goals-list"></div>
+
+  <!-- Progreso -->
+  <div class="chart-card" style="margin-top:16px">
     <div class="chart-title">Progreso acumulado — 30 días</div>
     <div style="position:relative;height:160px"><canvas id="progressChart"></canvas></div>
   </div>
   <div class="metrics" style="margin-top:12px" id="meta-metrics"></div>
-  <div class="chart-card" style="margin-top:4px" id="times-card" style="display:none">
+  <div class="chart-card" style="margin-top:4px;display:none" id="times-card">
     <div class="chart-title">Registro de tiempos</div>
     <div id="times-list" style="margin-bottom:10px"></div>
     <div style="display:flex;gap:8px">
       <input id="time-input" type="text" placeholder="MM:SS (ej: 52:30)"
         style="flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-mono);font-size:14px;outline:none">
       <button onclick="addTime()" style="padding:10px 16px;background:var(--amber);color:#000;border:none;border-radius:var(--radius-sm);font-family:var(--font-head);font-weight:700;font-size:13px;cursor:pointer">+ Tiempo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AGREGAR/EDITAR META -->
+<div class="modal-overlay" id="goal-modal">
+  <div class="modal" style="max-width:400px">
+    <h3 id="goal-modal-title">Nueva meta</h3>
+    <p style="margin-bottom:16px">Agrega una meta con su fecha y hora para hacer seguimiento.</p>
+
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Nombre de la meta</div>
+      <input id="goal-name" type="text" placeholder="ej: ICFES, Maratón Medellín, Parcial..."
+        style="width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Emoji (opcional)</div>
+      <input id="goal-icon" type="text" placeholder="🎯" maxlength="2"
+        style="width:80px;padding:11px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:18px;outline:none;text-align:center">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Fecha</div>
+        <input id="goal-date" type="date"
+          style="width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Hora inicio</div>
+        <input id="goal-time" type="time" value="07:00"
+          style="width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Zona horaria</div>
+      <select id="goal-tz" style="width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-head);font-size:14px;outline:none">
+        <option value="-05:00">Colombia (UTC-5)</option>
+        <option value="-06:00">México (UTC-6)</option>
+        <option value="-04:00">Venezuela (UTC-4)</option>
+        <option value="-03:00">Argentina (UTC-3)</option>
+        <option value="+00:00">UTC</option>
+      </select>
+    </div>
+    <div id="goal-error" style="display:none;font-size:12px;color:var(--red);margin-bottom:10px"></div>
+    <div class="modal-btns">
+      <button onclick="saveGoal()" class="btn-green" style="flex:1;padding:12px">Guardar meta</button>
+      <button onclick="closeGoalModal()" class="btn-dim">Cancelar</button>
     </div>
   </div>
 </div>
@@ -534,21 +584,51 @@ function habitApplies(h, date) {
 }
 
 // ═══════════════════════════════════════════════════════
-// COUNTDOWN
+// METAS — múltiples metas con fechas
 // ═══════════════════════════════════════════════════════
-let ICFES_TIMESTAMP = (() => {
-  if (USER_PROFILE && USER_PROFILE.icfesDate) {
-    const d = new Date(USER_PROFILE.icfesDate + 'T07:00:00-05:00');
-    return isNaN(d) ? new Date('2026-07-26T07:00:00-05:00').getTime() : d.getTime();
-  }
-  return new Date('2026-07-26T07:00:00-05:00').getTime();
-})();
+function loadGoals() {
+  try { return JSON.parse(localStorage.getItem('user_goals_v1') || '[]'); } catch(e) { return []; }
+}
+function saveGoals(goals) {
+  try { localStorage.setItem('user_goals_v1', JSON.stringify(goals)); } catch(e) {}
+  fbWrite('userGoals', goals);
+}
 
+let USER_GOALS = loadGoals();
+let _editingGoalId = null;
+
+function getNextGoal() {
+  const now = Date.now();
+  const future = USER_GOALS.filter(g => g.timestamp > now);
+  if (!future.length) return null;
+  return future.sort((a,b) => a.timestamp - b.timestamp)[0];
+}
+
+// ═══════════════════════════════════════════════════════
+// COUNTDOWN — basado en la próxima meta
+// ═══════════════════════════════════════════════════════
 function pad(n){ return String(Math.floor(n)).padStart(2,'0'); }
+
 function tickCountdown() {
-  const diff = ICFES_TIMESTAMP - Date.now();
+  const goal = getNextGoal();
+  if (!goal) {
+    ['cd-dias','cd-horas','cd-mins','cd-segs'].forEach(id => document.getElementById(id).textContent = '--');
+    document.getElementById('cd-event-name').textContent = 'Sin metas próximas';
+    document.getElementById('cd-event-date').textContent = 'Agrega una meta en la pestaña Meta';
+    return;
+  }
+  document.getElementById('cd-event-name').textContent = (goal.icon||'🎯') + ' ' + goal.name;
+  const dateObj = new Date(goal.timestamp);
+  const days2 = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const months2 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  document.getElementById('cd-event-date').textContent =
+    days2[dateObj.getDay()] + ' ' + dateObj.getDate() + ' ' + months2[dateObj.getMonth()] +
+    ' · ' + dateObj.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+
+  const diff = goal.timestamp - Date.now();
   if (diff <= 0) {
     ['cd-dias','cd-horas','cd-mins','cd-segs'].forEach(id => document.getElementById(id).textContent = '00');
+    document.querySelectorAll('.cd-num').forEach(el => el.style.color = 'var(--green)');
     return;
   }
   const s = Math.floor(diff/1000);
@@ -556,12 +636,111 @@ function tickCountdown() {
   document.getElementById('cd-horas').textContent = pad(Math.floor((s%86400)/3600));
   document.getElementById('cd-mins').textContent  = pad(Math.floor((s%3600)/60));
   document.getElementById('cd-segs').textContent  = pad(s%60);
-  if (Math.floor(s/86400) < 7) {
-    document.querySelectorAll('.cd-num').forEach(el => el.style.color = 'var(--amber)');
-    document.querySelectorAll('.cd-sep').forEach(el => el.style.color = 'var(--amber)');
-  }
+  const daysLeft = Math.floor(s/86400);
+  const color = daysLeft < 7 ? 'var(--amber)' : daysLeft < 30 ? 'var(--blue)' : 'var(--green)';
+  document.querySelectorAll('.cd-num').forEach(el => el.style.color = color);
+  document.querySelectorAll('.cd-sep').forEach(el => el.style.color = color);
 }
 tickCountdown(); setInterval(tickCountdown, 1000);
+
+// ═══════════════════════════════════════════════════════
+// MODAL METAS
+// ═══════════════════════════════════════════════════════
+function openGoalModal(id = null) {
+  _editingGoalId = id;
+  const modal = document.getElementById('goal-modal');
+  const title = document.getElementById('goal-modal-title');
+  if (id) {
+    const g = USER_GOALS.find(x => x.id === id);
+    if (!g) return;
+    title.textContent = 'Editar meta';
+    document.getElementById('goal-name').value = g.name || '';
+    document.getElementById('goal-icon').value = g.icon || '';
+    document.getElementById('goal-date').value = g.dateStr || '';
+    document.getElementById('goal-time').value = g.timeStr || '07:00';
+    document.getElementById('goal-tz').value = g.tz || '-05:00';
+  } else {
+    title.textContent = 'Nueva meta';
+    document.getElementById('goal-name').value = '';
+    document.getElementById('goal-icon').value = '🎯';
+    document.getElementById('goal-date').value = '';
+    document.getElementById('goal-time').value = '07:00';
+    document.getElementById('goal-tz').value = '-05:00';
+  }
+  document.getElementById('goal-error').style.display = 'none';
+  modal.classList.add('open');
+}
+function closeGoalModal() {
+  document.getElementById('goal-modal').classList.remove('open');
+  _editingGoalId = null;
+}
+function saveGoal() {
+  const name = document.getElementById('goal-name').value.trim();
+  const icon = document.getElementById('goal-icon').value.trim() || '🎯';
+  const dateStr = document.getElementById('goal-date').value;
+  const timeStr = document.getElementById('goal-time').value || '07:00';
+  const tz = document.getElementById('goal-tz').value || '-05:00';
+  const errEl = document.getElementById('goal-error');
+  if (!name) { errEl.textContent = 'Escribe el nombre de la meta'; errEl.style.display='block'; return; }
+  if (!dateStr) { errEl.textContent = 'Selecciona una fecha'; errEl.style.display='block'; return; }
+  const timestamp = new Date(`${dateStr}T${timeStr}:00${tz}`).getTime();
+  if (isNaN(timestamp)) { errEl.textContent = 'Fecha inválida'; errEl.style.display='block'; return; }
+  const goal = { id: _editingGoalId || Date.now().toString(), name, icon, dateStr, timeStr, tz, timestamp };
+  if (_editingGoalId) {
+    USER_GOALS = USER_GOALS.map(g => g.id === _editingGoalId ? goal : g);
+  } else {
+    USER_GOALS.push(goal);
+  }
+  saveGoals(USER_GOALS);
+  closeGoalModal();
+  renderGoals();
+  tickCountdown();
+}
+function deleteGoal(id) {
+  if (!confirm('¿Eliminar esta meta?')) return;
+  USER_GOALS = USER_GOALS.filter(g => g.id !== id);
+  saveGoals(USER_GOALS);
+  renderGoals();
+  tickCountdown();
+}
+function renderGoals() {
+  const container = document.getElementById('goals-list');
+  if (!container) return;
+  if (!USER_GOALS.length) {
+    container.innerHTML = `<div style="text-align:center;padding:30px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:13px">
+      No tienes metas todavía.<br>Toca <strong style="color:var(--text)">+ Agregar</strong> para crear una.
+    </div>`;
+    return;
+  }
+  const now = Date.now();
+  const sorted = [...USER_GOALS].sort((a,b) => a.timestamp - b.timestamp);
+  container.innerHTML = sorted.map(g => {
+    const diff = g.timestamp - now;
+    const isPast = diff <= 0;
+    const s = Math.abs(Math.floor(diff/1000));
+    const dLeft = Math.floor(s/86400);
+    const color = isPast ? 'var(--muted)' : dLeft < 7 ? 'var(--amber)' : dLeft < 30 ? 'var(--blue)' : 'var(--green)';
+    const timeLabel = isPast ? '¡Completada!' : dLeft > 0 ? `${dLeft} días` : 'Hoy';
+    const dateObj = new Date(g.timestamp);
+    const months2 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const dateLabel = dateObj.getDate() + ' ' + months2[dateObj.getMonth()] + ' ' + dateObj.getFullYear() +
+      ' · ' + dateObj.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+    return `<div style="background:var(--surface);border:1px solid ${isPast?'var(--border)':'rgba(255,255,255,0.1)'};border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;${isPast?'opacity:0.5':''}">
+      <div style="width:44px;height:44px;border-radius:12px;background:${isPast?'var(--surface2)':'rgba(255,255,255,0.06)'};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${g.icon||'🎯'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px">${g.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono)">${dateLabel}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:${color}">${timeLabel}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+          <button onclick="openGoalModal('${g.id}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:3px 8px;cursor:pointer">Editar</button>
+          <button onclick="deleteGoal('${g.id}')" style="background:var(--red-dim);border:1px solid rgba(255,85,102,0.2);border-radius:6px;color:var(--red);font-size:11px;padding:3px 8px;cursor:pointer">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 // ═══════════════════════════════════════════════════════
 // DATA
@@ -644,8 +823,8 @@ async function fbSync() {
   if (!currentUser) return;
   setSyncStatus('syncing','sync...');
   try {
-    const [remoteData, remoteTimes, remoteHabits, remoteProfile] = await Promise.all([
-      fbRead('habitData'), fbRead('runTimes'), fbRead('habitConfig'), fbRead('userProfile')
+    const [remoteData, remoteTimes, remoteHabits, remoteProfile, remoteGoals] = await Promise.all([
+      fbRead('habitData'), fbRead('runTimes'), fbRead('habitConfig'), fbRead('userProfile'), fbRead('userGoals')
     ]);
     if (remoteData && typeof remoteData==='object') {
       const merged = Object.assign({}, remoteData, DATA);
@@ -665,6 +844,13 @@ async function fbSync() {
     if (remoteProfile && typeof remoteProfile==='object') {
       const merged = Object.assign({}, remoteProfile, USER_PROFILE);
       USER_PROFILE = merged; localStorage.setItem('user_profile_v1', JSON.stringify(merged));
+    }
+    if (remoteGoals && Array.isArray(remoteGoals)) {
+      // Merge goals by id
+      const localIds = new Set(USER_GOALS.map(g=>g.id));
+      const merged = [...USER_GOALS, ...remoteGoals.filter(g=>!localIds.has(g.id))];
+      USER_GOALS = merged; localStorage.setItem('user_goals_v1', JSON.stringify(merged));
+      tickCountdown();
     }
     setSyncStatus('online','online');
     renderHoy();
@@ -984,6 +1170,9 @@ HABITS_CONFIG:
 USER_PROFILE:
 {"mainGoal":"...","goalDetail":"...","goalDate":"YYYY-MM-DD","language":"..."}
 
+GOALS_CONFIG:
+[{"id":"1","name":"Nombre meta","icon":"🎯","dateStr":"YYYY-MM-DD","timeStr":"HH:MM","tz":"-05:00","timestamp":0}]
+
 Formato por hábito:
 {
   "id": "snake_case_unico",
@@ -1077,6 +1266,33 @@ async function processHabitsConfig(reply) {
       }
     }
 
+    // Extract GOALS_CONFIG
+    let newGoals = null;
+    const goalsIdx = cleaned.indexOf('GOALS_CONFIG:');
+    if (goalsIdx !== -1) {
+      const afterLabel = cleaned.slice(goalsIdx + 'GOALS_CONFIG:'.length).trim();
+      const startBracket = afterLabel.indexOf('[');
+      if (startBracket !== -1) {
+        let depth = 0, end = -1;
+        for (let i = startBracket; i < afterLabel.length; i++) {
+          const c = afterLabel[i];
+          if (c === '[' || c === '{') depth++;
+          else if (c === ']' || c === '}') { depth--; if (depth === 0 && c === ']') { end = i; break; } }
+        }
+        if (end !== -1) {
+          try {
+            const parsed = JSON.parse(afterLabel.slice(startBracket, end + 1));
+            // Recalculate timestamps from dateStr/timeStr/tz
+            newGoals = parsed.map(g => ({
+              ...g,
+              id: g.id || Date.now().toString() + Math.random(),
+              timestamp: new Date(`${g.dateStr}T${g.timeStr||'07:00'}:00${g.tz||'-05:00'}`).getTime()
+            })).filter(g => !isNaN(g.timestamp));
+          } catch(e) { console.error('Goals parse error:', e); }
+        }
+      }
+    }
+
     if (!newHabits || !Array.isArray(newHabits) || newHabits.length === 0) {
       console.error('No valid habits array found in:', cleaned);
       addChatMessage('ai', 'Hubo un problema procesando la configuración. Por favor responde de nuevo con tus preferencias.');
@@ -1087,14 +1303,17 @@ async function processHabitsConfig(reply) {
 
     if (profile) {
       saveUserProfile(profile);
-      if (profile.icfesDate) {
-        ICFES_TIMESTAMP = new Date(profile.icfesDate + 'T07:00:00-05:00').getTime();
-      }
+    }
+
+    if (newGoals && newGoals.length > 0) {
+      USER_GOALS = newGoals;
+      saveGoals(USER_GOALS);
+      tickCountdown();
     }
 
     if (chatMode === 'onboarding') {
       await fbWrite('onboardingDone', true);
-      addChatMessage('ai', '¡Listo! 🎉 Tus hábitos han sido configurados. Toca la X para empezar.');
+      addChatMessage('ai', '¡Listo! 🎉 Tus hábitos y metas han sido configurados. Toca la X para empezar.');
       document.getElementById('chat-close-btn').style.display = 'block';
       chatDone = true;
     } else {
@@ -1337,22 +1556,14 @@ function renderMeta() {
   const today=new Date();today.setHours(0,0,0,0);
   let daysStudied=0,totalQ=0;
   Object.values(DATA).forEach(d=>{if((d.icfes||0)>0){daysStudied++;totalQ+=d.icfes;}});
-  const daysLeft=Math.max(0,Math.round((ICFES_TIMESTAMP-Date.now())/(1000*60*60*24)));
+  const nextGoal = getNextGoal();
+  const daysLeft = nextGoal ? Math.max(0,Math.round((nextGoal.timestamp-Date.now())/(1000*60*60*24))) : 0;
 
-  // Goal card
-  if (USER_PROFILE && USER_PROFILE.mainGoal==='icfes') {
-    document.getElementById('meta-goal-title').textContent='🎯 ICFES 2026';
-    document.getElementById('meta-goal-detail').textContent=`Puntaje objetivo: ${USER_PROFILE.icfesScore||'—'} · Meta: ${USER_PROFILE.icfesTarget||30} preguntas/día`;
-    document.getElementById('times-card').style.display='none';
-  } else if (USER_PROFILE && USER_PROFILE.sports) {
-    document.getElementById('meta-goal-title').textContent='🏅 '+USER_PROFILE.sports;
-    document.getElementById('meta-goal-detail').textContent=USER_PROFILE.sportsGoal||'Sigue entrenando';
-    document.getElementById('times-card').style.display='block';
-  }
+  renderGoals();
 
   document.getElementById('meta-metrics').innerHTML=`
-    <div class="metric"><div class="metric-val" style="color:var(--blue)">${daysStudied}</div><div class="metric-lbl">Días estudiando</div></div>
-    <div class="metric accent"><div class="metric-val">${daysLeft}</div><div class="metric-lbl">Días para la meta</div></div>`;
+    <div class="metric"><div class="metric-val" style="color:var(--blue)">${daysStudied}</div><div class="metric-lbl">Días activos</div></div>
+    <div class="metric accent"><div class="metric-val">${nextGoal?daysLeft:'—'}</div><div class="metric-lbl">Días para próxima meta</div></div>`;
 
   const labels=[],vals=[];let cum=0;
   for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);cum+=DATA[dk(d)]?.icfes||0;labels.push(d.getDate()+'/'+(d.getMonth()+1));vals.push(cum);}
