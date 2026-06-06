@@ -519,7 +519,11 @@
   </div>
   <div class="chat-messages" id="chat-messages"></div>
   <div class="chat-input-row">
-    <textarea class="chat-input" id="chat-input" placeholder="Escribe tu respuesta..." rows="1"
+    <button id="mic-btn" onclick="toggleRecording()"
+      style="width:44px;height:44px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s">
+      🎙️
+    </button>
+    <textarea class="chat-input" id="chat-input" placeholder="Escribe o graba tu respuesta..." rows="1"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"></textarea>
     <button class="chat-send" id="chat-send-btn" onclick="sendChatMessage()">↑</button>
   </div>
@@ -1126,42 +1130,55 @@ async function sendChatMessage() {
 }
 
 function getOnboardingSystemPrompt() {
-  return `Eres un asistente amigable y conciso de una app llamada "icfes.track" que ayuda a personalizar hábitos. Hablas en español informal (tuteo).
+  return `Eres un asistente cálido, humano y motivador de una app llamada "icfes.track". Hablas en español informal (tuteo). Tu tono es como el de un amigo que genuinamente quiere ayudar — empático, cercano, nunca robótico. Usas emojis con naturalidad. Celebras cuando el usuario comparte sus metas.
 
-FLUJO OBLIGATORIO — sigue este orden exacto:
+TU MISIÓN: Conocer las metas del usuario, entender su contexto, y diseñar un plan de hábitos personalizado que realmente le ayude a llegar ahí.
+
+FLUJO DE CONVERSACIÓN — sigue este orden, pero de forma natural, no como un formulario:
 
 PASO 1 — Meta principal:
-Pregunta: "¿Tu meta principal es prepararte para el ICFES?"
-- Si SÍ → sigue el flujo ICFES:
-    * Pregunta el puntaje objetivo
-    * Según el puntaje calcula meta diaria de preguntas: 300-350→25/día, 351-400→35/día, 401-450→55/día, 451-500→60/día, 500+→75/día
-    * Pregunta la fecha del examen (default: 26 julio 2026 a las 7:00am)
-- Si NO → pregunta cuál es su meta principal (maratón, aprender algo, fitness, trabajo, etc.)
-    * Adapta los hábitos completamente a esa meta
-    * Si es una carrera: pregunta distancia, tiempo objetivo, días de entrenamiento
-    * Si es otra cosa: pregunta lo que tenga sentido para esa meta
+Pregunta con entusiasmo: "¿Tu meta principal es prepararte para el ICFES?"
+- Si SÍ → flujo ICFES:
+    * Pregunta el puntaje objetivo con emoción ("¡Qué bien! ¿Cuánto quieres sacar?")
+    * Calcula meta diaria: 300-350→25/día, 351-400→35/día, 401-450→55/día, 451-500→60/día, 500+→75/día
+    * Pregunta la fecha exacta del examen y hora (default solo si dicen que no la saben: 26 julio 2026, 7:00am)
+    * Sugiere hábitos relacionados con el ICFES (lectura, matemáticas, inglés, etc.)
+- Si NO → pregunta con curiosidad genuina cuál es su meta
+    * Escucha, muestra interés real ("¡Qué bacano! Cuéntame más...")
+    * Pregunta la fecha específica de esa meta — SIEMPRE. No uses fecha default para metas que no son ICFES.
+    * Pregunta la hora si es relevante (una carrera, un examen, un evento)
+    * Según la meta, sugiere hábitos que tengan sentido: si es maratón → running, hidratación, descanso. Si es aprender algo → práctica diaria, lectura. Si es fitness → gym, alimentación. Etc.
 
-PASO 2 — Idioma:
-Pregunta si estudia algún idioma. Si sí → ¿cuál?
+PASO 2 — Metas adicionales:
+Pregunta si tiene otras metas importantes con fechas — pueden ser eventos, exámenes, carreras, proyectos. Agrega cada una con su fecha y hora a GOALS_CONFIG. Sé entusiasta al escucharlas.
 
-PASO 3 — Lectura:
-Pregunta si le gusta leer. Si sí → ¿cuántos minutos al día?
+PASO 3 — Idioma:
+Pregunta si estudia algún idioma. Muestra interés genuino si dice que sí.
 
-PASO 4 — Deporte:
-Pregunta si hace deporte. Si sí → ¿cuál? ¿Qué días?
-Si menciona varios deportes, pregunta los días de cada uno por separado.
+PASO 4 — Lectura:
+Pregunta si le gusta leer. Si sí → ¿cuántos minutos al día quiere dedicar?
 
-PASO 5 — Hábitos extras:
-Pregunta si quiere algún hábito adicional (skincare, meditación, agua, sueño, etc.)
-Si dice no → genera la config final INMEDIATAMENTE.
+PASO 5 — Deporte:
+Pregunta si hace deporte. Si sí → ¿cuál? ¿Qué días específicamente?
+Si menciona varios, pregunta los días de cada uno por separado.
+
+PASO 6 — Hábitos extras:
+Pregunta si quiere trackear algo más (skincare, meditación, agua, sueño, etc.)
+Si dice que no → genera la config final INMEDIATAMENTE con todo lo conversado.
+
+REGLAS DE TONO:
+- Máximo 3-4 líneas por mensaje. Nunca largo ni aburrido.
+- Celebra las metas del usuario: "¡Eso suena increíble!", "¡Qué disciplina!"
+- Si la meta es ambiciosa, reconócelo y motívalo.
+- Haz que el usuario sienta que este plan es SUYO, no genérico.
+- NUNCA suenes como un formulario o robot.
 
 CRÍTICO: Cuando el usuario diga que no quiere más hábitos, responde DE INMEDIATO con HABITS_CONFIG: y el JSON. No hagas más preguntas.
-IMPORTANTE: Sé breve. Máximo 3-4 líneas por mensaje. Un emoji al inicio está bien.
 
-TIPOS DE HÁBITO — tú decides según el contexto:
-- "number": cuando tiene sentido contar cantidad (preguntas ICFES, litros vasos de agua, etc.)
-- "check": hábitos de sí/no (gym, skincare, dormir bien, correr, leer, etc.)
-- "english": SOLO para idiomas — muestra opciones Duolingo/Leer/Conversar con IA/Podcast/Pelicula(en esta seccion)
+TIPOS DE HÁBITO — reglas ESTRICTAS:
+- "number": SOLO cuando hay que contar cantidad numérica (preguntas ICFES, km, vasos de agua, etc.)
+- "english": OBLIGATORIO para CUALQUIER idioma que el usuario esté aprendiendo. Muestra opciones: Duolingo, Leer, Conversar con IA, Podcast, Series. NUNCA uses "check" para un idioma.
+- "check": hábitos de sí/no (gym, skincare, dormir, correr, leer, meditación, etc.)
 
 Cuando tengas TODA la info, responde con este formato EXACTO:
 HABITS_CONFIG:
@@ -1188,7 +1205,7 @@ Formato por hábito:
   "unit": "preguntas"
 }
 
-Notas: "always":true = todos los días (omite "days"). "days" solo si NO es always. "dailyGoal" y "unit" solo para type "number".`;
+Notas: "always":true = todos los días (omite "days"). "days" solo si NO es always. "dailyGoal" y "unit" solo para type "number". En GOALS_CONFIG pon timestamp:0 y el código lo calculará automáticamente.`;
 }
 
 function getManageSystemPrompt() {
@@ -1647,8 +1664,21 @@ async function refreshQuote(force = false) {
     const goal = USER_PROFILE?.mainGoal || 'general';
     const goalDetail = USER_PROFILE?.goalDetail || '';
     const language = USER_PROFILE?.language || '';
-    const langInstruction = language
-      ? `La frase DEBE estar escrita en ${language}. Incluye también la traducción al español en el campo "translation".`
+
+    // Normalize language name to actual language
+    const langMap = {
+      'ingles':'inglés','inglés':'inglés','english':'inglés',
+      'frances':'francés','francés':'francés','french':'francés',
+      'portugues':'portugués','portugués':'portugués','portuguese':'portugués',
+      'aleman':'alemán','alemán':'alemán','german':'alemán',
+      'italiano':'italiano','italian':'italiano',
+      'mandarin':'mandarín','chino':'mandarín','chinese':'mandarín',
+      'japones':'japonés','japonés':'japonés','japanese':'japonés',
+    };
+    const normalizedLang = language ? (langMap[language.toLowerCase()] || language) : '';
+
+    const langInstruction = normalizedLang
+      ? `La frase DEBE estar escrita COMPLETAMENTE en ${normalizedLang} (no en español, no en inglés a menos que sea ${normalizedLang}). Incluye la traducción al español en el campo "translation".`
       : 'La frase debe estar en español. Deja "translation" vacío.';
 
     const prompt = `Genera UNA frase motivadora para alguien cuya meta principal es: "${goal}${goalDetail ? ' — '+goalDetail : ''}".
@@ -1660,8 +1690,7 @@ La frase puede ser:
 -solo puedes usar autores reales, NO pueden ser ficción.
 
 Responde ÚNICAMENTE con este JSON (sin markdown, sin texto extra):
-{"quote":"la frase aquí","author":"Nombre del autor o 'Anónimo'","translation":"traducción al español si aplica, si no deja vacío","language":"${language || 'es'}"}`;
-
+{"quote":"la frase aquí","author":"Nombre del autor o 'Anónimo'","translation":"traducción al español si aplica, si no deja vacío","language":"${normalizedLang || 'es'}"}`;
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
@@ -1731,6 +1760,106 @@ function displayQuote(data) {
     transEl.style.display = 'block';
   } else {
     transEl.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// GRABACIÓN DE AUDIO — Whisper API
+// ═══════════════════════════════════════════════════════
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+async function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      await processAudio();
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+
+    const btn = document.getElementById('mic-btn');
+    btn.textContent = '⏹️';
+    btn.style.background = 'var(--red-dim)';
+    btn.style.borderColor = 'rgba(255,85,102,0.4)';
+    btn.style.animation = 'pulse 1s infinite alternate';
+
+    document.getElementById('chat-input').placeholder = 'Grabando... toca ⏹️ para parar';
+  } catch(e) {
+    if (e.name === 'NotAllowedError') {
+      addChatMessage('ai', '🎙️ Necesito permiso para usar el micrófono. Puedes escribir tu mensaje también.');
+    } else {
+      addChatMessage('ai', 'No pude acceder al micrófono: ' + e.message);
+    }
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  const btn = document.getElementById('mic-btn');
+  btn.textContent = '⏳';
+  btn.style.background = 'var(--amber-dim)';
+  btn.style.borderColor = 'rgba(255,179,71,0.3)';
+  btn.style.animation = 'none';
+  btn.disabled = true;
+  document.getElementById('chat-input').placeholder = 'Transcribiendo audio...';
+}
+
+async function processAudio() {
+  try {
+    const key = await getOpenAIKey();
+    if (!key) throw new Error('No API key');
+
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    const formData = new FormData();
+    formData.append('file', blob, 'audio.webm');
+    formData.append('model', 'whisper-1');
+    formData.append('language', USER_PROFILE?.language ? 'es' : 'es');
+
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const transcribed = data.text?.trim();
+    if (transcribed) {
+      document.getElementById('chat-input').value = transcribed;
+      document.getElementById('chat-input').placeholder = 'Escribe o graba tu respuesta...';
+      // Auto-send after transcription
+      sendChatMessage();
+    } else {
+      throw new Error('No se entendió el audio');
+    }
+  } catch(e) {
+    addChatMessage('ai', 'No pude transcribir el audio 😅 Intenta de nuevo o escribe tu mensaje.');
+    document.getElementById('chat-input').placeholder = 'Escribe o graba tu respuesta...';
+  } finally {
+    const btn = document.getElementById('mic-btn');
+    btn.textContent = '🎙️';
+    btn.style.background = 'var(--surface)';
+    btn.style.borderColor = 'var(--border2)';
+    btn.disabled = false;
   }
 }
 
