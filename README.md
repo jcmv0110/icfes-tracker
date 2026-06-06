@@ -5,7 +5,7 @@ Sincronización en tiempo real entre celular y PC via Firebase.
 
 ---
 
-## 🚀 Despliegue completo: GitHub Pages + Firebase
+##  Despliegue completo: GitHub Pages + Firebase
 
 ### PASO 1 — Crear proyecto Firebase
 
