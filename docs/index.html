@@ -1644,7 +1644,8 @@ document.getElementById('install-btn').addEventListener('click',async()=>{docume
 // ═══════════════════════════════════════════════════════
 async function refreshQuote(force = false) {
   const today = dk(new Date());
-  const cacheKey = 'daily_quote_' + today;
+  const langKey = (USER_PROFILE?.language || 'es').toLowerCase().replace(/\s/g,'');
+  const cacheKey = 'daily_quote_' + today + '_' + langKey;
   const cached = !force && (() => { try { return JSON.parse(localStorage.getItem(cacheKey)||'null'); } catch(e) { return null; } })();
   if (cached) { displayQuote(cached); return; }
 
@@ -1664,20 +1665,11 @@ async function refreshQuote(force = false) {
     const goalDetail = USER_PROFILE?.goalDetail || '';
     const language = USER_PROFILE?.language || '';
 
-    // Normalize language name to actual language
-    const langMap = {
-      'ingles':'inglés','inglés':'inglés','english':'inglés',
-      'frances':'francés','francés':'francés','french':'francés',
-      'portugues':'portugués','portugués':'portugués','portuguese':'portugués',
-      'aleman':'alemán','alemán':'alemán','german':'alemán',
-      'italiano':'italiano','italian':'italiano',
-      'mandarin':'mandarín','chino':'mandarín','chinese':'mandarín',
-      'japones':'japonés','japonés':'japonés','japanese':'japonés',
-    };
-    const normalizedLang = language ? (langMap[language.toLowerCase()] || language) : '';
+    // Use language exactly as user said it — AI handles any language
+    const normalizedLang = language.trim();
 
     const langInstruction = normalizedLang
-      ? `La frase DEBE estar escrita COMPLETAMENTE en ${normalizedLang} (no en español, no en inglés a menos que sea ${normalizedLang}). Incluye la traducción al español en el campo "translation".`
+      ? `REGLA ABSOLUTA: La frase DEBE estar escrita en ${normalizedLang}. NO en español. NO en inglés (a menos que ${normalizedLang} sea inglés). Escríbela en el idioma "${normalizedLang}" sin excepción. Incluye la traducción al español en "translation".`
       : 'La frase debe estar en español. Deja "translation" vacío.';
 
     const prompt = `Genera UNA frase motivadora para alguien cuya meta principal es: "${goal}${goalDetail ? ' — '+goalDetail : ''}".
