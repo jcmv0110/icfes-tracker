@@ -1141,13 +1141,13 @@ Pregunta con entusiasmo: "¿Tu meta principal es prepararte para el ICFES?"
 - Si SÍ → flujo ICFES:
     * Pregunta el puntaje objetivo con emoción ("¡Qué bien! ¿Cuánto quieres sacar?")
     * Calcula meta diaria: 300-350→25/día, 351-400→35/día, 401-450→55/día, 451-500→60/día, 500+→75/día
-    * Pregunta la fecha exacta del examen y hora (default solo si dicen que no la saben: 26 julio 2026, 7:00am)
-    * Sugiere hábitos relacionados con el ICFES (lectura, matemáticas, inglés, etc.)
+    * Pregunta la fecha exacta del examen y hora (default solo si no la saben: 26 julio 2026, 7:00am)
+    * Para ICFES los hábitos son FIJOS — no inventes otros. Solo pregunta: idioma (si estudia uno), lectura (si le gusta), deportes (cuáles y qué días), skincare (si quiere). Nada más.
 - Si NO → pregunta con curiosidad genuina cuál es su meta
     * Escucha, muestra interés real ("¡Qué bacano! Cuéntame más...")
-    * Pregunta la fecha específica de esa meta — SIEMPRE. No uses fecha default para metas que no son ICFES.
-    * Pregunta la hora si es relevante (una carrera, un examen, un evento)
-    * Según la meta, sugiere hábitos que tengan sentido: si es maratón → running, hidratación, descanso. Si es aprender algo → práctica diaria, lectura. Si es fitness → gym, alimentación. Etc.
+    * Pregunta la fecha específica de esa meta — SIEMPRE. No uses fecha default.
+    * Pregunta la hora si es relevante
+    * Analiza la meta y SUGIERE activamente los hábitos ideales para lograrla. Propónselos al usuario y pregunta si quiere incluirlos. Ejemplo: maratón → running (días específicos), hidratación, descanso. Programación → práctica diaria de código, lectura técnica. Bajar de peso → ejercicio, agua, sueño.
 
 PASO 2 — Metas adicionales:
 Pregunta si tiene otras metas importantes con fechas — pueden ser eventos, exámenes, carreras, proyectos. Agrega cada una con su fecha y hora a GOALS_CONFIG. Sé entusiasta al escucharlas.
@@ -1764,11 +1764,17 @@ function displayQuote(data) {
 }
 
 // ═══════════════════════════════════════════════════════
-// GRABACIÓN DE AUDIO — Whisper API
+// GRABACIÓN DE AUDIO — Whisper API + detección de silencio
 // ═══════════════════════════════════════════════════════
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let silenceTimer = null;
+let audioContext = null;
+let analyser = null;
+let silenceStart = null;
+const SILENCE_THRESHOLD = 15;   // nivel mínimo de sonido
+const SILENCE_DURATION = 3000;  // 3 segundos de silencio para parar
 
 async function toggleRecording() {
   if (isRecording) {
@@ -1784,25 +1790,59 @@ async function startRecording() {
     mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
 
+    // Detección de silencio con AudioContext
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    silenceStart = null;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    function checkSilence() {
+      if (!isRecording) return;
+      analyser.getByteFrequencyData(dataArray);
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+      if (avg < SILENCE_THRESHOLD) {
+        if (!silenceStart) silenceStart = Date.now();
+        const silenceDuration = Date.now() - silenceStart;
+        // Update visual countdown
+        const remaining = Math.max(0, Math.ceil((SILENCE_DURATION - silenceDuration) / 1000));
+        const btn = document.getElementById('mic-btn');
+        if (btn && silenceDuration > 500) btn.textContent = `${remaining}s`;
+        if (silenceDuration >= SILENCE_DURATION) {
+          stopRecording();
+          return;
+        }
+      } else {
+        silenceStart = null;
+        const btn = document.getElementById('mic-btn');
+        if (btn) btn.textContent = '⏹️';
+      }
+      requestAnimationFrame(checkSilence);
+    }
+
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
+      if (audioContext) { audioContext.close(); audioContext = null; }
       await processAudio();
     };
 
     mediaRecorder.start();
     isRecording = true;
+    requestAnimationFrame(checkSilence);
 
     const btn = document.getElementById('mic-btn');
     btn.textContent = '⏹️';
     btn.style.background = 'var(--red-dim)';
     btn.style.borderColor = 'rgba(255,85,102,0.4)';
-    btn.style.animation = 'pulse 1s infinite alternate';
-
-    document.getElementById('chat-input').placeholder = 'Grabando... toca ⏹️ para parar';
+    document.getElementById('chat-input').placeholder = 'Escuchando... para automáticamente al silencio';
   } catch(e) {
     if (e.name === 'NotAllowedError') {
-      addChatMessage('ai', '🎙️ Necesito permiso para usar el micrófono. Puedes escribir tu mensaje también.');
+      addChatMessage('ai', '🎙️ Necesito permiso para el micrófono. También puedes escribir tu mensaje.');
     } else {
       addChatMessage('ai', 'No pude acceder al micrófono: ' + e.message);
     }
@@ -1810,30 +1850,27 @@ async function startRecording() {
 }
 
 function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
+  if (!isRecording) return;
   isRecording = false;
+  silenceStart = null;
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   const btn = document.getElementById('mic-btn');
   btn.textContent = '⏳';
   btn.style.background = 'var(--amber-dim)';
   btn.style.borderColor = 'rgba(255,179,71,0.3)';
-  btn.style.animation = 'none';
   btn.disabled = true;
-  document.getElementById('chat-input').placeholder = 'Transcribiendo audio...';
+  document.getElementById('chat-input').placeholder = 'Transcribiendo...';
 }
 
 async function processAudio() {
   try {
     const key = await getOpenAIKey();
     if (!key) throw new Error('No API key');
-
     const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    if (blob.size < 1000) throw new Error('Audio muy corto');
     const formData = new FormData();
     formData.append('file', blob, 'audio.webm');
     formData.append('model', 'whisper-1');
-    formData.append('language', USER_PROFILE?.language ? 'es' : 'es');
-
     const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${key}` },
@@ -1841,15 +1878,13 @@ async function processAudio() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-
     const transcribed = data.text?.trim();
     if (transcribed) {
       document.getElementById('chat-input').value = transcribed;
       document.getElementById('chat-input').placeholder = 'Escribe o graba tu respuesta...';
-      // Auto-send after transcription
       sendChatMessage();
     } else {
-      throw new Error('No se entendió el audio');
+      throw new Error('No se entendió');
     }
   } catch(e) {
     addChatMessage('ai', 'No pude transcribir el audio 😅 Intenta de nuevo o escribe tu mensaje.');
