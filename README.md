@@ -1,8 +1,4 @@
 # icfes.track — Habit Tracker
-
-App PWA para seguimiento de hábitos: ICFES + Running (Maratón Medellín 10K) + Gym + Lectura + Skincare + Inglés.  
-Sincronización en tiempo real entre celular y PC via Firebase.
-
 ---
 
 ##  Despliegue completo: GitHub Pages + Firebase
