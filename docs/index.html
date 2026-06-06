@@ -588,7 +588,10 @@ function getDayScore(date) {
       const val = h.id==='icfes' ? (dd.icfes||0) : (dd.counters?.[h.id]||0);
       if (val > 0) done++;
     }
-    else if (h.type==='english' && dd.ingles) done++;
+    else if (h.type==='english') {
+      const ing = dd.ingles;
+      if ((Array.isArray(ing) && ing.length > 0) || (typeof ing === 'string' && ing)) done++;
+    }
     else if (h.type==='check' && dd.checks && dd.checks[h.id]) done++;
   });
   return total>0 ? done/total : 0;
@@ -1165,17 +1168,29 @@ function renderHoy() {
   // English habit
   const eng=habits.find(h=>h.type==='english');
   if (eng) {
-    const sel=dd.ingles||'';
+    const sel = Array.isArray(dd.ingles) ? dd.ingles : (dd.ingles ? [dd.ingles] : []);
+    const done = sel.length > 0;
+    const opts = [
+      ['🦜','Duolingo'],
+      ['📰','Leer en inglés'],
+      ['🤖','Conversar con IA'],
+      ['🎧','Podcast'],
+      ['🎬','Series/películas'],
+      ['✍️','Escribir en inglés'],
+    ];
     html+=`<div class="section-label">${eng.name}</div>
     <div class="icfes-card">
       <div class="icfes-header">
         <div class="habit-ico" style="background:${eng.bg||'rgba(180,122,255,0.12)'}">${eng.icon}</div>
-        <div class="habit-body"><div class="habit-name">${eng.name}</div><div class="habit-sub">Elige tu actividad</div></div>
-        <div class="check${sel?' done':''}">✓</div>
+        <div class="habit-body">
+          <div class="habit-name">${eng.name}</div>
+          <div class="habit-sub">${done ? sel.join(' · ') : 'Selecciona lo que hiciste hoy'}</div>
+        </div>
+        <div class="check${done?' done':''}">✓</div>
       </div>
       <div class="eng-opts">
-        ${[['🦜','Duolingo'],['📰','Leer en inglés'],['🤖','Conversar con IA']].map(([ico,lbl])=>
-          `<div class="eng-opt${sel===lbl?' selected':''}" onclick="setIngles('${lbl}')"><span>${ico}</span>${lbl}</div>`).join('')}
+        ${opts.map(([ico,lbl])=>
+          `<div class="eng-opt${sel.includes(lbl)?' selected':''}" onclick="toggleIngles('${lbl}')"><span>${ico}</span>${lbl}</div>`).join('')}
       </div>
     </div>`;
   }
@@ -1226,8 +1241,17 @@ function toggleHabit(id) {
   dd.checks[id]=!dd.checks[id]; setDay(currentDate,dd); renderHoy();
   document.getElementById('streak-top').textContent=calcStreak();
 }
-function setIngles(val) {
-  const dd=getDay(currentDate); dd.ingles=dd.ingles===val?'':val; setDay(currentDate,dd); renderHoy();
+function toggleIngles(val) {
+  const dd = getDay(currentDate);
+  let sel = Array.isArray(dd.ingles) ? [...dd.ingles] : (dd.ingles ? [dd.ingles] : []);
+  if (sel.includes(val)) {
+    sel = sel.filter(x => x !== val);
+  } else {
+    sel.push(val);
+  }
+  dd.ingles = sel;
+  setDay(currentDate, dd);
+  renderHoy();
 }
 function changeDay(n) { currentDate=new Date(currentDate); currentDate.setDate(currentDate.getDate()+n); renderHoy(); }
 
