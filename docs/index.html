@@ -945,8 +945,8 @@ PASO 1 — Meta principal:
 Pregunta: "¿Tu meta principal es prepararte para el ICFES?"
 - Si SÍ → sigue el flujo ICFES:
     * Pregunta el puntaje objetivo
-    * Según el puntaje calcula meta diaria de preguntas: 300-350→15/día, 351-400→25/día, 401-450→40/día, 451-500→60/día, 500+→75/día
-    * Pregunta la fecha del examen (default: 26 julio 2026)
+    * Según el puntaje calcula meta diaria de preguntas: 300-350→25/día, 351-400→35/día, 401-450→55/día, 451-500→60/día, 500+→75/día
+    * Pregunta la fecha del examen (default: 26 julio 2026 a las 7:00am)
 - Si NO → pregunta cuál es su meta principal (maratón, aprender algo, fitness, trabajo, etc.)
     * Adapta los hábitos completamente a esa meta
     * Si es una carrera: pregunta distancia, tiempo objetivo, días de entrenamiento
@@ -970,9 +970,9 @@ CRÍTICO: Cuando el usuario diga que no quiere más hábitos, responde DE INMEDI
 IMPORTANTE: Sé breve. Máximo 3-4 líneas por mensaje. Un emoji al inicio está bien.
 
 TIPOS DE HÁBITO — tú decides según el contexto:
-- "number": cuando tiene sentido contar cantidad (preguntas ICFES, km, minutos, vasos de agua, páginas, etc.)
-- "check": hábitos de sí/no (gym, skincare, dormir bien, correr, etc.)
-- "english": SOLO para idiomas — muestra opciones Duolingo/Leer/Conversar con IA
+- "number": cuando tiene sentido contar cantidad (preguntas ICFES, litros vasos de agua, etc.)
+- "check": hábitos de sí/no (gym, skincare, dormir bien, correr, leer, etc.)
+- "english": SOLO para idiomas — muestra opciones Duolingo/Leer/Conversar con IA/Podcast/Pelicula(en esta seccion)
 
 Cuando tengas TODA la info, responde con este formato EXACTO:
 HABITS_CONFIG:
@@ -1422,7 +1422,7 @@ ${langInstruction}
 
 La frase puede ser:
 - Una cita real de una persona famosa. Prioriza estos autores: David Goggins, Jeff Bezos, Naval Ravikant, Elon Musk, Kobe Bryant, Michelle Obama, Steve Jobs, Marcus Aurelius, Seneca, Freddy Vega, Dale Carnegie, Ryan Holiday, James Clear. También puedes usar otros autores relevantes.
-- O una frase original poderosa relacionada con la meta
+-solo puedes usar autores reales, NO pueden ser ficción.
 
 Responde ÚNICAMENTE con este JSON (sin markdown, sin texto extra):
 {"quote":"la frase aquí","author":"Nombre del autor o 'Anónimo'","translation":"traducción al español si aplica, si no deja vacío","language":"${language || 'es'}"}`;
