@@ -830,32 +830,39 @@ async function fbSync() {
     const [remoteData, remoteTimes, remoteHabits, remoteProfile, remoteGoals] = await Promise.all([
       fbRead('habitData'), fbRead('runTimes'), fbRead('habitConfig'), fbRead('userProfile'), fbRead('userGoals')
     ]);
-    if (remoteData && typeof remoteData==='object') {
-      const merged = Object.assign({}, remoteData, DATA);
-      DATA = merged; localStorage.setItem('icfes_v2', JSON.stringify(merged));
-      await fbWrite('habitData', merged);
+
+    // Firebase siempre gana — reemplaza local, no mezcla
+    if (remoteData && typeof remoteData==='object' && Object.keys(remoteData).length > 0) {
+      DATA = remoteData;
+      localStorage.setItem('icfes_v2', JSON.stringify(DATA));
+    } else if (Object.keys(DATA).length > 0) {
+      // Solo si Firebase está vacío, sube los datos locales
+      await fbWrite('habitData', DATA);
     }
-    if (remoteTimes && Array.isArray(remoteTimes)) {
+
+    if (remoteTimes && Array.isArray(remoteTimes) && remoteTimes.length > 0) {
+      localStorage.setItem('run_times', JSON.stringify(remoteTimes));
+    } else {
       const local = loadTimes();
-      const merged = [...new Set([...local, ...remoteTimes])];
-      localStorage.setItem('run_times', JSON.stringify(merged));
-      await fbWrite('runTimes', merged);
+      if (local.length > 0) await fbWrite('runTimes', local);
     }
-    if (remoteHabits && Array.isArray(remoteHabits)) {
-      localStorage.setItem('habit_config_v1', JSON.stringify(remoteHabits));
+
+    if (remoteHabits && Array.isArray(remoteHabits) && remoteHabits.length > 0) {
       HABIT_CONFIG = remoteHabits;
+      localStorage.setItem('habit_config_v1', JSON.stringify(HABIT_CONFIG));
     }
-    if (remoteProfile && typeof remoteProfile==='object') {
-      const merged = Object.assign({}, remoteProfile, USER_PROFILE);
-      USER_PROFILE = merged; localStorage.setItem('user_profile_v1', JSON.stringify(merged));
+
+    if (remoteProfile && typeof remoteProfile==='object' && Object.keys(remoteProfile).length > 0) {
+      USER_PROFILE = remoteProfile;
+      localStorage.setItem('user_profile_v1', JSON.stringify(USER_PROFILE));
     }
-    if (remoteGoals && Array.isArray(remoteGoals)) {
-      // Merge goals by id
-      const localIds = new Set(USER_GOALS.map(g=>g.id));
-      const merged = [...USER_GOALS, ...remoteGoals.filter(g=>!localIds.has(g.id))];
-      USER_GOALS = merged; localStorage.setItem('user_goals_v1', JSON.stringify(merged));
+
+    if (remoteGoals && Array.isArray(remoteGoals) && remoteGoals.length > 0) {
+      USER_GOALS = remoteGoals;
+      localStorage.setItem('user_goals_v1', JSON.stringify(USER_GOALS));
       tickCountdown();
     }
+
     setSyncStatus('online','online');
     renderHoy();
     document.getElementById('streak-top').textContent = calcStreak();
@@ -983,11 +990,25 @@ function translateAuthError(code) {
   return {'EMAIL_NOT_FOUND':'Correo no registrado','INVALID_PASSWORD':'Contraseña incorrecta','USER_DISABLED':'Cuenta desactivada','EMAIL_EXISTS':'Este correo ya tiene cuenta — inicia sesión','INVALID_EMAIL':'Correo inválido','TOO_MANY_ATTEMPTS_TRY_LATER':'Demasiados intentos — espera','INVALID_LOGIN_CREDENTIALS':'Correo o contraseña incorrectos'}[code]||code;
 }
 function authLogout() {
-  localStorage.removeItem('fb_auth'); currentUser=null; closeFirebaseModal();
-  setSyncStatus('','local'); document.getElementById('user-greeting').style.display='none';
+  // Limpiar TODOS los datos locales al cerrar sesión
+  localStorage.removeItem('fb_auth');
+  localStorage.removeItem('icfes_v2');
+  localStorage.removeItem('run_times');
+  localStorage.removeItem('habit_config_v1');
+  localStorage.removeItem('user_profile_v1');
+  localStorage.removeItem('user_goals_v1');
+  // Limpiar caché de frases
+  Object.keys(localStorage).forEach(k => { if (k.startsWith('daily_quote_')) localStorage.removeItem(k); });
+  // Reset variables en memoria
+  DATA = {}; HABIT_CONFIG = []; USER_PROFILE = {}; USER_GOALS = [];
+  currentUser = null;
+  closeFirebaseModal();
+  setSyncStatus('','local');
+  document.getElementById('user-greeting').style.display='none';
   authMode='login'; document.getElementById('field-name').style.display='none';
   document.getElementById('btn-main-action').textContent='Iniciar sesión';
   document.getElementById('btn-main-action').onclick=authLogin;
+  renderHoy();
   showLoginScreen();
 }
 function openFirebaseModal() {
@@ -1405,13 +1426,15 @@ function renderHoy() {
   if (eng) {
     const sel = Array.isArray(dd.ingles) ? dd.ingles : (dd.ingles ? [dd.ingles] : []);
     const done = sel.length > 0;
+    // Use actual language name from habit or USER_PROFILE
+    const langName = USER_PROFILE?.language || eng.name || 'Idioma';
     const opts = [
       ['🦜','Duolingo'],
-      ['📰','Leer en inglés'],
+      [`📰`,`Leer en ${langName}`],
       ['🤖','Conversar con IA'],
       ['🎧','Podcast'],
-      ['🎬','Series/películas'],
-      ['✍️','Escribir en inglés'],
+      [`🎬`,`Series/películas en ${langName}`],
+      [`✍️`,`Escribir en ${langName}`],
     ];
     html+=`<div class="section-label">${eng.name}</div>
     <div class="icfes-card">
